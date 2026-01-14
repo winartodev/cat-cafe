@@ -1,18 +1,27 @@
 BEGIN;
 
+CREATE TABLE IF NOT EXISTS reward_types (
+    id BIGSERIAL PRIMARY KEY,
+    slug VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS daily_rewards (
     id BIGSERIAL PRIMARY KEY,
+    reward_type_id BIGINT NOT NULL REFERENCES reward_types(id) ON DELETE CASCADE,
     day_number INT NOT NULL,
-    reward_type VARCHAR(100) NOT NULL,
     reward_amount INT NOT NULL,
     is_active BOOLEAN DEFAULT true,
+    description TEXT DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS user_daily_rewards (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     current_streak INT DEFAULT 0,
     last_claim_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

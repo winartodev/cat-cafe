@@ -2,16 +2,15 @@ package main
 
 import (
 	"fmt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/winartodev/cat-cafe/internal/config"
+	"github.com/winartodev/cat-cafe/internal/handlers"
+	"github.com/winartodev/cat-cafe/internal/repositories"
+	"github.com/winartodev/cat-cafe/internal/usecase"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/winartodev/cat-cafe/internal/config"
-	"github.com/winartodev/cat-cafe/internal/controllers"
-	"github.com/winartodev/cat-cafe/internal/handlers"
-	"github.com/winartodev/cat-cafe/internal/repositories"
 )
 
 func main() {
@@ -20,17 +19,20 @@ func main() {
 		log.Fatalf("Could not load config: %v", err)
 	}
 
-	cfg.Database.SetupConnection()
+	db, err := cfg.Database.SetupConnection()
+	if err != nil {
+		log.Fatalf("Could setup database: %v", err)
+	}
 
 	app := fiber.New(fiber.Config{
 		AppName: cfg.App.Name,
 	})
 
-	repo := repositories.SetupRepository()
+	repo := repositories.SetupRepository(db)
 
-	ctrl := controllers.SetUpController(*repo)
+	uc := usecase.SetUpUseCase(*repo)
 
-	handlers.SetupHandler(app, *ctrl)
+	handlers.SetupHandler(app, *uc)
 
 	go func() {
 		port := fmt.Sprintf(":%d", cfg.App.Port)

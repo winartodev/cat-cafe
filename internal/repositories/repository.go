@@ -1,11 +1,26 @@
 package repositories
 
-type Repository struct {
-	CatRepository CatRepository
+import "database/sql"
+
+type BaseRepository struct {
+	db *sql.DB
+	tx *sql.Tx
 }
 
-func SetupRepository() *Repository {
+func (r *BaseRepository) GetTx() *sql.Tx {
+	return r.tx
+}
+
+type Repository struct {
+	DailyRewardRepository     DailyRewardRepository
+	UserRepository            UserRepository
+	UserDailyRewardRepository UserDailyRewardRepository
+}
+
+func SetupRepository(db *sql.DB) *Repository {
 	return &Repository{
-		CatRepository: NewCatRepository(),
+		DailyRewardRepository:     NewDailyRewardsRepository(db),
+		UserRepository:            NewUserRepository(db),
+		UserDailyRewardRepository: NewUserDailyRewardRepository(db),
 	}
 }

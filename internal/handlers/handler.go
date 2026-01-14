@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/winartodev/cat-cafe/internal/controllers"
+	"github.com/winartodev/cat-cafe/internal/usecase"
 )
 
 type Registerer interface {
@@ -20,14 +20,14 @@ func register(api fiber.Router, items ...Registerer) error {
 	return nil
 }
 
-func SetupHandler(app *fiber.App, ctrl controllers.Controller) {
-	catHandler := NewCatHandler(
-		ctrl.CatController,
+func SetupHandler(app *fiber.App, ctrl usecase.UseCase) {
+	dailyRewardHandler := NewDailyRewardHandler(
+		ctrl.DailyRewardUseCase,
 	)
 
 	api := app.Group("/api")
 
-	if err := register(api, catHandler); err != nil {
+	if err := register(api, dailyRewardHandler); err != nil {
 		panic(err)
 	}
 }
