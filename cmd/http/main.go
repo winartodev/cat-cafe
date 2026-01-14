@@ -20,6 +20,8 @@ func main() {
 		log.Fatalf("Could not load config: %v", err)
 	}
 
+	cfg.Database.SetupConnection()
+
 	app := fiber.New(fiber.Config{
 		AppName: cfg.App.Name,
 	})
