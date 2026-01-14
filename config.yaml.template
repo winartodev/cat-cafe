@@ -1,0 +1,7 @@
+app:
+  name: Cat Cafe API
+  port: 8888
+database:
+  name: cat_cafe_db
+  host:
+  port:

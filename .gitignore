@@ -16,6 +16,7 @@ cat-cafe
 *.so
 *.dylib
 bin/
+tmp/
 
 # --- Go Specific ---
 # Test binaries and profiles
