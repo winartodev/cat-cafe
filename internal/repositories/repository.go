@@ -23,8 +23,8 @@ type Repository struct {
 
 func SetupRepository(db *sql.DB, client *redis.Client) *Repository {
 	return &Repository{
-		DailyRewardRepository:     NewDailyRewardsRepository(db),
+		DailyRewardRepository:     NewDailyRewardsRepository(db, client),
 		UserRepository:            NewUserRepository(db, client),
-		UserDailyRewardRepository: NewUserDailyRewardRepository(db),
+		UserDailyRewardRepository: NewUserDailyRewardRepository(db, client),
 	}
 }

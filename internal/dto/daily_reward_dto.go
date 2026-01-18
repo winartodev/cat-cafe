@@ -43,7 +43,7 @@ type DailyRewardStatus struct {
 
 type ClaimDailyRewardResponse struct {
 	Reward  *DailyRewardResponse `json:"reward"`
-	Balance *UserBalanceResponse `json:"balance"`
+	Balance *UserBalanceResponse `json:"balance,omitempty"`
 }
 
 func (e *CreateRewardTypeRequest) ToEntity() *entities.RewardType {
@@ -126,15 +126,20 @@ func ToDailyRewardStatus(rewards []entities.DailyReward, dailyRewardIdx *int64, 
 }
 
 func ToClaimDailyRewardResponse(reward *entities.DailyReward, balance *entities.UserBalance) *ClaimDailyRewardResponse {
-	if (reward == nil) || (balance == nil) {
+	if reward == nil {
 		return nil
 	}
 
-	return &ClaimDailyRewardResponse{
-		Reward: ToDailyRewardResponse(reward),
-		Balance: &UserBalanceResponse{
+	var userBalance *UserBalanceResponse
+	if balance != nil {
+		userBalance = &UserBalanceResponse{
 			Coin: balance.Coin,
 			Gem:  balance.Gem,
-		},
+		}
+	}
+
+	return &ClaimDailyRewardResponse{
+		Reward:  ToDailyRewardResponse(reward),
+		Balance: userBalance,
 	}
 }

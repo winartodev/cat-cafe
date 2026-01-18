@@ -3,12 +3,19 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/database"
 	"github.com/winartodev/cat-cafe/pkg/helper"
+	"time"
+)
+
+const (
+	dailyRewardMasterRedisKey = "master:daily_rewards"
 )
 
 type DailyRewardRepository interface {
@@ -24,23 +31,21 @@ type DailyRewardRepository interface {
 	CreateDailyRewardDB(ctx context.Context, data entities.DailyReward) (id *int64, err error)
 	GetDailyRewardsDB(ctx context.Context) (res []entities.DailyReward, err error)
 	GetDailyRewardByIDDB(ctx context.Context, id int64) (res *entities.DailyReward, err error)
-	GetDailyRewardByDayDB(ctx context.Context, dayNumber int64) (res *entities.DailyReward, err error)
 	UpdateDailyRewardDB(ctx context.Context, id int64, data entities.DailyReward) (err error)
 
 	DailyRewardWithTx(ctx context.Context, fn func(txRepo DailyRewardRepository) error) (err error)
+
+	GetDailyRewardsRedis(ctx context.Context) (res []entities.DailyReward, err error)
+	SetDailyRewardsRedis(ctx context.Context, data []entities.DailyReward) (err error)
+	DeleteDailyRewardsRedis(ctx context.Context) error
 }
 
 type dailyRewardRepository struct {
 	BaseRepository
 }
 
-func NewDailyRewardsRepository(db *sql.DB) DailyRewardRepository {
-	return &dailyRewardRepository{
-		BaseRepository{
-			db: db,
-			tx: nil,
-		},
-	}
+func NewDailyRewardsRepository(db *sql.DB, redis *redis.Client) DailyRewardRepository {
+	return &dailyRewardRepository{BaseRepository{db: db, tx: nil, redis: redis}}
 }
 
 func (r *dailyRewardRepository) WithTx(tx *sql.Tx) DailyRewardRepository {
@@ -179,11 +184,6 @@ func (r *dailyRewardRepository) GetDailyRewardByIDDB(ctx context.Context, id int
 	return r.scanDailyRewardTypeRow(row)
 }
 
-func (r *dailyRewardRepository) GetDailyRewardByDayDB(ctx context.Context, dayNumber int64) (res *entities.DailyReward, err error) {
-	row := r.db.QueryRowContext(ctx, getDailyRewardByDayQuery, dayNumber)
-	return r.scanDailyRewardTypeRow(row)
-}
-
 func (r *dailyRewardRepository) UpdateDailyRewardDB(ctx context.Context, id int64, data entities.DailyReward) (err error) {
 	now := helper.TimeUTC()
 
@@ -263,4 +263,33 @@ func (r *dailyRewardRepository) scanDailyRewardTypeRow(row *sql.Row) (*entities.
 	dailyReward.RewardType = &rewardType
 
 	return &dailyReward, err
+}
+
+func (r *dailyRewardRepository) GetDailyRewardsRedis(ctx context.Context) (res []entities.DailyReward, err error) {
+	val, err := r.redis.Get(ctx, dailyRewardMasterRedisKey).Result()
+	if errors.Is(err, redis.Nil) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal([]byte(val), &res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (r *dailyRewardRepository) SetDailyRewardsRedis(ctx context.Context, data []entities.DailyReward) (err error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	return r.redis.Set(ctx, dailyRewardMasterRedisKey, jsonData, 168*time.Hour).Err()
+}
+
+func (r *dailyRewardRepository) DeleteDailyRewardsRedis(ctx context.Context) error {
+	return r.redis.Del(ctx, dailyRewardMasterRedisKey).Err()
 }

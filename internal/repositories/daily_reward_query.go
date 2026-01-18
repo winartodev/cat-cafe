@@ -64,20 +64,6 @@ const (
         JOIN reward_types AS rt on dr.reward_type_id = rt.id WHERE dr.id = $1 
 	`
 
-	getDailyRewardByDayQuery = `
-		SELECT
-               dr.id,
-                dr.reward_type_id,
-                rt.slug,
-                rt.name,
-                dr.day_number,
-                dr.reward_amount,
-                dr.is_active,
-                dr.description
-        FROM daily_rewards AS dr
-        JOIN reward_types AS rt on dr.reward_type_id = rt.id  WHERE dr.day_number = $1 
-	`
-
 	updateDailyRewardQuery = `
 		UPDATE daily_rewards
 		SET

@@ -5,20 +5,20 @@ import (
 )
 
 type User struct {
-	ID           int64
-	ExternalID   string
-	Username     string
-	Email        string
-	PasswordHash string
-	IsActive     bool
-	UserBalance  *UserBalance
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID           int64        `json:"id"`
+	ExternalID   string       `json:"external_id"`
+	Username     string       `json:"username"`
+	Email        string       `json:"email"`
+	PasswordHash string       `json:"-"`
+	IsActive     bool         `json:"is_active"`
+	UserBalance  *UserBalance `json:"balance"`
+	CreatedAt    time.Time    `json:"-"`
+	UpdatedAt    time.Time    `json:"-"`
 }
 
 type UserBalance struct {
-	Coin int64
-	Gem  int64
+	Coin int64 `json:"coin"`
+	Gem  int64 `json:"gem"`
 }
 
 type UserCache struct {

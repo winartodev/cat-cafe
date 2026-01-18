@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	maxDailyRewardDays = 3
+	maxDailyRewardDays = 7
 )
 
 type DailyRewardUseCase interface {
@@ -56,6 +56,8 @@ func (d *dailyRewardUseCase) CreateRewardType(ctx context.Context, data entities
 
 	data.ID = *id
 
+	_ = d.dailyRewardRepo.DeleteDailyRewardsRedis(ctx)
+
 	return &data, err
 }
 
@@ -73,6 +75,8 @@ func (d *dailyRewardUseCase) UpdateRewardTypes(ctx context.Context, id int64, da
 	if err != nil {
 		return nil, err
 	}
+
+	_ = d.dailyRewardRepo.DeleteDailyRewardsRedis(ctx)
 
 	return res, err
 }
@@ -122,11 +126,27 @@ func (d *dailyRewardUseCase) CreateDailyReward(ctx context.Context, data entitie
 
 	data.ID = *id
 
+	_ = d.dailyRewardRepo.DeleteDailyRewardsRedis(ctx)
+
 	return &data, err
 }
 
 func (d *dailyRewardUseCase) GetDailyRewards(ctx context.Context) (res []entities.DailyReward, err error) {
-	return d.dailyRewardRepo.GetDailyRewardsDB(ctx)
+	res, err = d.dailyRewardRepo.GetDailyRewardsRedis(ctx)
+	if err == nil && res != nil {
+		return res, nil
+	}
+
+	rewards, err := d.dailyRewardRepo.GetDailyRewardsDB(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	go func(r []entities.DailyReward) {
+		_ = d.dailyRewardRepo.SetDailyRewardsRedis(context.Background(), r)
+	}(rewards)
+
+	return rewards, err
 }
 
 func (d *dailyRewardUseCase) GetDailyRewardID(ctx context.Context, id int64) (res *entities.DailyReward, err error) {
@@ -164,7 +184,30 @@ func (d *dailyRewardUseCase) UpdateDailyReward(ctx context.Context, id int64, da
 		return nil, err
 	}
 
+	_ = d.dailyRewardRepo.DeleteDailyRewardsRedis(ctx)
+
 	return res, err
+}
+
+func (d *dailyRewardUseCase) getDailyRewardByDay(ctx context.Context, day int64) (res *entities.DailyReward, err error) {
+	allRewards, err := d.GetDailyRewards(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var reward *entities.DailyReward
+	for _, r := range allRewards {
+		if r.DayNumber == day {
+			reward = &r
+			break
+		}
+	}
+
+	if reward == nil {
+		return nil, apperror.ErrRecordNotFound
+	}
+
+	return reward, nil
 }
 
 func (d *dailyRewardUseCase) GetRewardStatus(ctx context.Context) ([]entities.DailyReward, *int64, *bool, error) {
@@ -218,10 +261,14 @@ func (d *dailyRewardUseCase) GetRewardStatus(ctx context.Context) ([]entities.Da
 		}
 	}
 
-	for i := range rewards {
+	// We do deep copy to prevent corruption while modifying data
+	rewardCopy := make([]entities.DailyReward, len(rewards))
+	copy(rewardCopy, rewards)
+
+	for i := range rewardCopy {
 		var status entities.RewardStatus
 
-		rewardIdx := rewards[i].DayNumber - 1
+		rewardIdx := rewardCopy[i].DayNumber - 1
 
 		if rewardIdx < dailyRewardIdx {
 			// Days before current position = already claimed in previous days
@@ -238,10 +285,23 @@ func (d *dailyRewardUseCase) GetRewardStatus(ctx context.Context) ([]entities.Da
 			status = entities.StatusLocked
 		}
 
-		rewards[i].Status = status
+		rewardCopy[i].Status = status
+
+		// Calculate cycle number for display (Day 1-7, 8-14, 15-21, etc.)
+		// Use CurrentStreak-1 if already claimed today to prevent premature cycle increment
+		claimedDays := progression.CurrentStreak
+		if !isNewDay {
+			claimedDays = progression.CurrentStreak - 1
+		}
+
+		// Determine which cycle (0 = Days 1-7, 1 = Days 8-14, etc.)
+		cycleNumber := claimedDays / maxDailyRewardDays
+
+		// Add cycle offset to base day number
+		rewardCopy[i].DayNumber = rewardCopy[i].DayNumber + (cycleNumber * maxDailyRewardDays)
 	}
 
-	return rewards, &dailyRewardIdx, &isNewDay, err
+	return rewardCopy, &dailyRewardIdx, &isNewDay, err
 }
 
 func (d *dailyRewardUseCase) ClaimReward(ctx context.Context) (reward *entities.DailyReward, newBalance *entities.UserBalance, err error) {
@@ -276,7 +336,7 @@ func (d *dailyRewardUseCase) ClaimReward(ctx context.Context) (reward *entities.
 	rewardIdx := progression.CurrentStreak % maxDailyRewardDays
 	dayToClaim := rewardIdx + 1
 
-	reward, err = d.dailyRewardRepo.GetDailyRewardByDayDB(ctx, dayToClaim)
+	reward, err = d.getDailyRewardByDay(ctx, dayToClaim)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -315,6 +375,9 @@ func (d *dailyRewardUseCase) ClaimReward(ctx context.Context) (reward *entities.
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Clear the cache so that the next request retrieves the latest progress data from the database
+	_ = d.userDailyRewardRepo.DeleteUserDailyRewardRedis(ctx, userID)
 
 	// Get updated balance for rewards that are stored in DB
 	var userBalance *entities.UserBalance

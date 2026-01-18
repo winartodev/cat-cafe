@@ -67,12 +67,17 @@ func (c *userUseCase) GetUserByID(ctx context.Context, userID int64) (res *entit
 }
 
 func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error) {
+	progress, err := c.userDailyRewardRepo.GetUserDailyRewardRedis(ctx, userID)
+	if err == nil && progress != nil {
+		return progress, nil
+	}
+
 	user, err := c.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	progress, err := c.userDailyRewardRepo.GetUserDailyRewardByIDDB(ctx, user.ID)
+	progress, err = c.userDailyRewardRepo.GetUserDailyRewardByIDDB(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +85,10 @@ func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) 
 	if progress == nil {
 		return nil, nil
 	}
+
+	go func(p *entities.UserDailyReward) {
+		_ = c.userDailyRewardRepo.SetUserDailyRewardRedis(context.Background(), userID, p, 24*time.Hour)
+	}(progress)
 
 	return progress, nil
 }

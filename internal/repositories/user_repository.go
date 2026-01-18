@@ -14,6 +14,11 @@ import (
 	"github.com/winartodev/cat-cafe/pkg/helper"
 )
 
+const (
+	userTokenBlacklistRedisKey = "user:token:blacklist:%s"
+	userIdRedisKey             = "user:id:%d"
+)
+
 type UserRepository interface {
 	GetTx() *sql.Tx
 	WithTx(tx *sql.Tx) UserRepository
@@ -85,11 +90,9 @@ func (r *userRepository) GetUserBalanceByIDDB(ctx context.Context, id int64) (re
 		&userBalance.Gem,
 	)
 
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -126,12 +129,9 @@ func (r *userRepository) scanUserRow(row *sql.Row) (*entities.User, error) {
 		&user.Username,
 		&user.Email,
 	)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -182,9 +182,9 @@ func (r *userRepository) IsTokenBlacklisted(ctx context.Context, token string) b
 }
 
 func (r *userRepository) blacklistKey(token string) string {
-	return fmt.Sprintf("user:token:blacklist:%s", token)
+	return fmt.Sprintf(userTokenBlacklistRedisKey, token)
 }
 
 func (r *userRepository) userIDKey(userId int64) string {
-	return fmt.Sprintf("user:id:%d", userId)
+	return fmt.Sprintf(userIdRedisKey, userId)
 }
