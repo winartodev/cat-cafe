@@ -231,7 +231,7 @@ func (d *dailyRewardUseCase) GetRewardStatus(ctx context.Context) ([]entities.Da
 		progression = &entities.UserDailyReward{CurrentStreak: 0, LastClaimDate: nil}
 	}
 
-	now := helper.TimeUTC()
+	now := helper.NowUTC()
 	today := now.Format("2006-01-02")
 
 	// Default to true for new users. If LastClaimDate exists, check if today is a later date.
@@ -315,7 +315,7 @@ func (d *dailyRewardUseCase) ClaimReward(ctx context.Context) (reward *entities.
 		return nil, nil, err
 	}
 
-	now := helper.TimeUTC()
+	now := helper.NowUTC()
 	today := now.Format("2006-01-02")
 
 	// Check if user already claimed today
@@ -359,7 +359,8 @@ func (d *dailyRewardUseCase) ClaimReward(ctx context.Context) (reward *entities.
 		// Handle reward based on type
 		if reward.RewardType.Slug.RequiresBalanceUpdate() {
 			// For COIN and GEM, update user balance in database
-			err = userRepoTx.UpdateUserBalanceWithTx(ctx, userID, reward.RewardType.Slug, reward.RewardAmount)
+			balanceType := reward.RewardType.Slug.ToUserBalance()
+			err = userRepoTx.UpdateUserBalanceWithTx(ctx, userID, balanceType, reward.RewardAmount)
 			if err != nil {
 				return err
 			}

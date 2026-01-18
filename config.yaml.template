@@ -5,7 +5,14 @@ database:
   driver:
   host:
   port:
-  name:
+  name: cat_cafe_db
   username:
   password:
-  sslMode:
+  sslMode: disable
+redis:
+  host: 127.0.0.1:6379
+  password:
+  DB:
+jwt:
+  secretKey:
+  tokenDuration: 24

@@ -18,13 +18,13 @@ const (
 	// TODO: FIX THIS QUERY IMMEDIATELY
 	getUserByIDQuery = `
 		SELECT 
-		    id, external_id, username, email
+		    id, external_id, username, email, gem, coin
 		FROM users WHERE id = $1
 	`
 
 	getUserByEmailQuery = `
 		SELECT 
-		    id, external_id, username, email
+		    id, external_id, username, email, gem, coin
 		FROM users WHERE email = $1
 	`
 
@@ -55,4 +55,6 @@ const (
 		    last_claim_date = EXCLUDED.last_claim_date,
 			updated_at=EXCLUDED.updated_at
 	`
+
+	updateLastSyncBalanceQuery = `UPDATE users SET last_sync_balance_at = $1, updated_at = $2 WHERE id = $3`
 )
