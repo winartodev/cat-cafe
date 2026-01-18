@@ -2,6 +2,7 @@
 # Ignore the actual config but keep the template
 config.yaml
 !config.yaml.template
+.env
 
 # Ignore local file storage (if any)
 /files/
@@ -16,6 +17,7 @@ cat-cafe
 *.so
 *.dylib
 bin/
+tmp/
 
 # --- Go Specific ---
 # Test binaries and profiles

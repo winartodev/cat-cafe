@@ -1,0 +1,11 @@
+app:
+  name: Cat Cafe API
+  port: 8888
+database:
+  driver:
+  host:
+  port:
+  name:
+  username:
+  password:
+  sslMode:
