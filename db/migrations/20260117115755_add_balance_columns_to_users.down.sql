@@ -2,6 +2,7 @@ BEGIN;
 
 ALTER TABLE users
     DROP COLUMN IF EXISTS coin,
-    DROP COLUMN IF EXISTS gem;
+    DROP COLUMN IF EXISTS gem,
+    DROP COLUMN IF EXISTS last_sync_balance_at;
 
 COMMIT;

@@ -9,6 +9,7 @@ type UseCase struct {
 	UserUseCase        UserUseCase
 	DailyRewardUseCase DailyRewardUseCase
 	AuthUseCase        AuthUseCase
+	GameUseCase        GameUseCase
 }
 
 func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
@@ -30,9 +31,15 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		jwt_,
 	)
 
+	gameUC := NewGameUseCase(
+		userUC,
+		repo.UserRepository,
+	)
+
 	return &UseCase{
 		UserUseCase:        userUC,
 		DailyRewardUseCase: dailyRewardUC,
 		AuthUseCase:        authUC,
+		GameUseCase:        gameUC,
 	}
 }

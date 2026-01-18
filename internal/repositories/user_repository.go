@@ -27,11 +27,14 @@ type UserRepository interface {
 	GetUserByIDDB(ctx context.Context, id int64) (res *entities.User, err error)
 	GetUserByEmailDB(ctx context.Context, email string) (res *entities.User, err error)
 	GetUserBalanceByIDDB(ctx context.Context, id int64) (res *entities.UserBalance, err error)
-	UpdateUserBalanceWithTx(ctx context.Context, userID int64, rewardType entities.RewardTypeSlug, amount int64) (err error)
+
+	BalanceWithTx(ctx context.Context, fn func(txRepo UserRepository) error) error
+	UpdateUserBalanceWithTx(ctx context.Context, userID int64, rewardType entities.UserBalanceType, amount int64) (err error)
+	UpdateLastSyncBalanceWithTx(ctx context.Context, userID int64, lastSyncTime time.Time) (err error)
 
 	SetUserRedis(ctx context.Context, userID int64, data *entities.UserCache, exp time.Duration) (err error)
 	GetUserRedis(ctx context.Context, userID int64) (res *entities.UserCache, err error)
-	DeleteUserCache(ctx context.Context, userID int64) (err error)
+	DeleteUserRedis(ctx context.Context, userID int64) (err error)
 
 	BlacklistToken(ctx context.Context, token string, expiration time.Duration) error
 	IsTokenBlacklisted(ctx context.Context, token string) bool
@@ -54,7 +57,7 @@ func (r *userRepository) WithTx(tx *sql.Tx) UserRepository {
 }
 
 func (r *userRepository) CreateUserDB(ctx context.Context, data *entities.User) (*int64, error) {
-	now := helper.TimeUTC()
+	now := helper.NowUTC()
 	var id *int64
 	err := r.db.QueryRowContext(
 		ctx,
@@ -99,19 +102,33 @@ func (r *userRepository) GetUserBalanceByIDDB(ctx context.Context, id int64) (re
 	return &userBalance, nil
 }
 
-func (r *userRepository) UpdateUserBalanceWithTx(ctx context.Context, userID int64, rewardType entities.RewardTypeSlug, amount int64) error {
+func (r *userRepository) BalanceWithTx(ctx context.Context, fn func(txRepo UserRepository) error) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	txRepo := r.WithTx(tx)
+
+	err = fn(txRepo)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *userRepository) UpdateUserBalanceWithTx(ctx context.Context, userID int64, balanceType entities.UserBalanceType, amount int64) error {
 	if r.tx == nil {
 		return apperror.ErrRequiredActiveTx
 	}
 
 	var query string
-	switch rewardType {
-	case entities.RewardTypeCoin:
+	switch balanceType {
+	case entities.BalanceTypeCoin:
 		query = `UPDATE users SET coin = coin + $1 WHERE id = $2`
-	case entities.RewardTypeGem:
+	case entities.BalanceTypeGem:
 		query = `UPDATE users SET gem = gem + $1 WHERE id = $2`
-	case entities.RewardTypeGoPayCoin:
-		return nil
 	default:
 		return apperror.ErrUnknownRewardType
 	}
@@ -121,19 +138,39 @@ func (r *userRepository) UpdateUserBalanceWithTx(ctx context.Context, userID int
 	return err
 }
 
+func (r *userRepository) UpdateLastSyncBalanceWithTx(ctx context.Context, userID int64, lastSyncTime time.Time) (err error) {
+	if r.tx == nil {
+		return apperror.ErrRequiredActiveTx
+	}
+
+	now := helper.NowUTC()
+	_, err = r.tx.ExecContext(ctx, updateLastSyncBalanceQuery, lastSyncTime, now, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func (r *userRepository) scanUserRow(row *sql.Row) (*entities.User, error) {
 	var user entities.User
+	var userBalance entities.UserBalance
 	err := row.Scan(
 		&user.ID,
 		&user.ExternalID,
 		&user.Username,
 		&user.Email,
+		&userBalance.Gem,
+		&userBalance.Coin,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}
+
+	user.UserBalance = &userBalance
 
 	return &user, nil
 }
@@ -164,7 +201,7 @@ func (r *userRepository) GetUserRedis(ctx context.Context, userID int64) (*entit
 	return &user, nil
 }
 
-func (r *userRepository) DeleteUserCache(ctx context.Context, userID int64) error {
+func (r *userRepository) DeleteUserRedis(ctx context.Context, userID int64) error {
 	key := r.userIDKey(userID)
 	return r.redis.Del(ctx, key).Err()
 }

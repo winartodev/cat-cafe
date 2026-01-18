@@ -21,18 +21,26 @@ func register(api fiber.Router, m middleware.Middleware, items ...Registerer) er
 	return nil
 }
 
-func SetupHandler(app *fiber.App, ctrl usecase.UseCase, m middleware.Middleware) {
+func SetupHandler(app *fiber.App, uc usecase.UseCase, m middleware.Middleware) {
 	dailyRewardHandler := NewDailyRewardHandler(
-		ctrl.DailyRewardUseCase,
+		uc.DailyRewardUseCase,
 	)
 
 	authHandler := NewAuthHandler(
-		ctrl.AuthUseCase,
+		uc.AuthUseCase,
+	)
+
+	gameHandler := NewGameHandler(
+		uc.GameUseCase,
 	)
 
 	api := app.Group("/api")
 
-	if err := register(api, m, dailyRewardHandler, authHandler); err != nil {
+	if err := register(api, m,
+		dailyRewardHandler,
+		authHandler,
+		gameHandler,
+	); err != nil {
 		panic(err)
 	}
 }

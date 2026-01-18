@@ -2,6 +2,6 @@ package helper
 
 import "time"
 
-func TimeUTC() time.Time {
+func NowUTC() time.Time {
 	return time.Now().UTC()
 }

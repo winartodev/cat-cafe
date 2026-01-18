@@ -57,7 +57,7 @@ func (r *dailyRewardRepository) WithTx(tx *sql.Tx) DailyRewardRepository {
 }
 
 func (r *dailyRewardRepository) CreateRewardTypeDB(ctx context.Context, data entities.RewardType) (id *int64, err error) {
-	now := helper.TimeUTC()
+	now := helper.NowUTC()
 	var lastInsertId int64
 
 	err = r.db.QueryRowContext(ctx, rewardTypeInsertQuery, data.Slug, data.Name, now, now).Scan(&id)
@@ -100,7 +100,7 @@ func (r *dailyRewardRepository) GetRewardTypesDB(ctx context.Context) (res []ent
 }
 
 func (r *dailyRewardRepository) UpdateRewardTypesDB(ctx context.Context, id int64, data entities.RewardType) (err error) {
-	now := helper.TimeUTC()
+	now := helper.NowUTC()
 
 	res, err := r.db.ExecContext(ctx, updateRewardTypeQuery, data.Name, now, id)
 	if err != nil {
@@ -126,7 +126,7 @@ func (r *dailyRewardRepository) GetRewardTypeBySlugDB(ctx context.Context, slug 
 }
 
 func (r *dailyRewardRepository) CreateDailyRewardDB(ctx context.Context, data entities.DailyReward) (id *int64, err error) {
-	now := helper.TimeUTC()
+	now := helper.NowUTC()
 	var lastInsertId int64
 
 	err = r.db.QueryRowContext(ctx, insertDailyRewardQuery,
@@ -185,7 +185,7 @@ func (r *dailyRewardRepository) GetDailyRewardByIDDB(ctx context.Context, id int
 }
 
 func (r *dailyRewardRepository) UpdateDailyRewardDB(ctx context.Context, id int64, data entities.DailyReward) (err error) {
-	now := helper.TimeUTC()
+	now := helper.NowUTC()
 
 	res, err := r.db.ExecContext(ctx,
 		updateDailyRewardQuery,

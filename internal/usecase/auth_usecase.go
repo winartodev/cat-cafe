@@ -77,7 +77,7 @@ func (a *authUseCase) Logout(ctx context.Context, tokenString string, userID int
 		return errors.New("failed to logout")
 	}
 
-	_ = a.userRepo.DeleteUserCache(ctx, claims.UserID)
+	_ = a.userRepo.DeleteUserRedis(ctx, claims.UserID)
 
 	return nil
 }
