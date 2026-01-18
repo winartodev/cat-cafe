@@ -25,6 +25,8 @@ func NewGameUseCase(userUc UserUseCase, userRepo repositories.UserRepository) Ga
 }
 
 func (g *gameUseCase) UpdateUserBalance(ctx context.Context, coinEarned int64, userID int64) (res *dto.UserBalanceResponse, err error) {
+	// TODO: should we validate earning rate ???
+
 	err = g.userRepo.BalanceWithTx(ctx, func(txRepo repositories.UserRepository) error {
 		if err := txRepo.UpdateUserBalanceWithTx(ctx, userID, entities.BalanceTypeCoin, coinEarned); err != nil {
 			return err

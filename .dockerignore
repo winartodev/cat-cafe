@@ -1,0 +1,29 @@
+# .dockerignore
+.git
+.gitignore
+.env
+.env.*
+*.md
+README.md
+LICENSE
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main
+
+# Test files
+*_test.go
+testdata/
+
+# Directories
+.vscode/
+.idea/
+tmp/
+logs/

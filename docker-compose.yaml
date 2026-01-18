@@ -1,0 +1,72 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cat-cafe-api
+    ports:
+      - "8888:8888"
+    environment:
+      - APP_NAME=Cat Cafe API
+      - APP_PORT=8888
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=cat_cafe_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres123
+      - DB_SSL_MODE=disable
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - JWT_SECRET_KEY=super-secret
+      - JWT_TOKEN_DURATION=24
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - cat-cafe-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: cat-cafe-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+      - POSTGRES_DB=cat_cafe_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cat-cafe-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:5-alpine
+    container_name: cat-cafe-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cat-cafe-network
+    restart: unless-stopped
+
+networks:
+  cat-cafe-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
