@@ -20,6 +20,17 @@ var (
 	// ErrRequiredActiveTx indicates that a database transaction is required for the operation.
 	ErrRequiredActiveTx = errors.New("this method requires an active transaction")
 
+	ErrMissingAuthHeader = errors.New("missing authorization header")
+
+	ErrInvalidToken = errors.New("invalid token")
+
+	ErrInvalidEmail = errors.New("invalid email")
+
+	ErrTokenExpired = errors.New("token expired")
+
+	ErrUnauthorized = errors.New("unauthorized")
+	ErrTokenRevoked = errors.New("token has been revoked")
+
 	// --- REQUEST & VALIDATION ERRORS ---
 
 	// ErrBadRequest indicates that the server cannot process the request due to client error.

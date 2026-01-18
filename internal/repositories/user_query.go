@@ -1,11 +1,31 @@
 package repositories
 
 const (
+	insertUserQuery = `
+		INSERT INTO users 
+		    (
+		     external_id,
+		     username,
+		     email,
+		     created_at,
+		     updated_at
+		     ) 
+		VALUES (
+		        $1, $2, $3, $4, $5
+		) RETURNING id
+	`
+
 	// TODO: FIX THIS QUERY IMMEDIATELY
-	getUserByIDDB = `
+	getUserByIDQuery = `
 		SELECT 
-		    id, external_id, username
+		    id, external_id, username, email
 		FROM users WHERE id = $1
+	`
+
+	getUserByEmailQuery = `
+		SELECT 
+		    id, external_id, username, email
+		FROM users WHERE email = $1
 	`
 
 	getUserDailyRewardQuery = `

@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"errors"
+	"github.com/winartodev/cat-cafe/internal/middleware"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/winartodev/cat-cafe/internal/dto"
@@ -160,7 +162,9 @@ func (d *DailyRewardHandler) UpdateDailyReward(c *fiber.Ctx) error {
 }
 
 func (d *DailyRewardHandler) GetDailyRewardStatus(c *fiber.Ctx) error {
-	ctx := c.Context()
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
+
 	rewards, dailyRewardIdx, isNewDay, err := d.DailyRewardUseCase.GetRewardStatus(ctx)
 	if err != nil {
 		if errors.Is(err, apperror.ErrRecordNotFound) {
@@ -174,7 +178,9 @@ func (d *DailyRewardHandler) GetDailyRewardStatus(c *fiber.Ctx) error {
 }
 
 func (d *DailyRewardHandler) ClaimReward(c *fiber.Ctx) error {
-	ctx := c.Context()
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
+
 	reward, newBalance, err := d.DailyRewardUseCase.ClaimReward(ctx)
 	if err != nil {
 		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
@@ -183,7 +189,7 @@ func (d *DailyRewardHandler) ClaimReward(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Claimed Successfully", dto.ToClaimDailyRewardResponse(reward, newBalance), nil)
 }
 
-func (d *DailyRewardHandler) Route(route fiber.Router) error {
+func (d *DailyRewardHandler) Route(route fiber.Router, m middleware.Middleware) error {
 	reward := route.Group("/rewards")
 
 	reward.Post("/types", d.CreateRewardType)
@@ -194,8 +200,8 @@ func (d *DailyRewardHandler) Route(route fiber.Router) error {
 
 	reward.Post("/daily", d.CreateDailyReward)
 	reward.Get("/daily", d.GetDailyRewards)
-	reward.Get("/daily/status", d.GetDailyRewardStatus)
-	reward.Post("/daily/claim", d.ClaimReward)
+	reward.Get("/daily/status", m.WithUserAuth(d.GetDailyRewardStatus))
+	reward.Post("/daily/claim", m.WithUserAuth(d.ClaimReward))
 
 	reward.Get("/daily/:id", d.GetDailyRewardByID)
 	reward.Put("/daily/:id", d.UpdateDailyReward)

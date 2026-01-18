@@ -168,8 +168,11 @@ func (d *dailyRewardUseCase) UpdateDailyReward(ctx context.Context, id int64, da
 }
 
 func (d *dailyRewardUseCase) GetRewardStatus(ctx context.Context) ([]entities.DailyReward, *int64, *bool, error) {
-	// TODO: Replace hardcoded ID '1' with dynamic ID from context.
-	userID := int64(2)
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil || userID <= 0 {
+		return nil, nil, nil, apperror.ErrUnauthorized
+	}
+
 	progression, err := d.userUseCase.GetUserDailyRewardByID(ctx, userID)
 	if err != nil {
 		return nil, nil, nil, err
@@ -242,8 +245,11 @@ func (d *dailyRewardUseCase) GetRewardStatus(ctx context.Context) ([]entities.Da
 }
 
 func (d *dailyRewardUseCase) ClaimReward(ctx context.Context) (reward *entities.DailyReward, newBalance *entities.UserBalance, err error) {
-	// TODO: Replace hardcoded ID '1' with dynamic ID from context.
-	userID := int64(2)
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil || userID <= 0 {
+		return nil, nil, apperror.ErrUnauthorized
+	}
+
 	progression, err := d.userUseCase.GetUserDailyRewardByID(ctx, userID)
 	if err != nil {
 		return nil, nil, err

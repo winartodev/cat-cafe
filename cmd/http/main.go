@@ -3,10 +3,14 @@ package main
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/winartodev/cat-cafe/internal/config"
 	"github.com/winartodev/cat-cafe/internal/handlers"
+	"github.com/winartodev/cat-cafe/internal/middleware"
 	"github.com/winartodev/cat-cafe/internal/repositories"
 	"github.com/winartodev/cat-cafe/internal/usecase"
+	"github.com/winartodev/cat-cafe/pkg/jwt"
 	"log"
 	"os"
 	"os/signal"
@@ -24,15 +28,25 @@ func main() {
 		log.Fatalf("Could setup database: %v", err)
 	}
 
+	redisClient, err := cfg.Redis.SetupRedisClient()
+	if err != nil {
+		log.Fatalf("Could setup redis: %v", err)
+	}
+
 	app := fiber.New(fiber.Config{
 		AppName: cfg.App.Name,
 	})
+	app.Use(logger.New())
+	app.Use(cors.New())
 
-	repo := repositories.SetupRepository(db)
+	jwtManager := jwt.NewJWT(cfg.JWT.SecretKey, cfg.JWT.TokenDuration)
 
-	uc := usecase.SetUpUseCase(*repo)
+	repo := repositories.SetupRepository(db, redisClient)
 
-	handlers.SetupHandler(app, *uc)
+	uc := usecase.SetUpUseCase(*repo, jwtManager)
+
+	middleware_ := middleware.NewMiddleware(jwtManager, repo.UserRepository)
+	handlers.SetupHandler(app, *uc, middleware_)
 
 	go func() {
 		port := fmt.Sprintf(":%d", cfg.App.Port)
