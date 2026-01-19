@@ -10,6 +10,7 @@ import (
 
 type GameUseCase interface {
 	UpdateUserBalance(ctx context.Context, coinEarned int64, userID int64) (res *dto.UserBalanceResponse, err error)
+	GetUserGameData(ctx context.Context, userID int64) (res *entities.Game, err error)
 }
 
 type gameUseCase struct {
@@ -52,5 +53,16 @@ func (g *gameUseCase) UpdateUserBalance(ctx context.Context, coinEarned int64, u
 	return &dto.UserBalanceResponse{
 		Coin: user.UserBalance.Coin,
 		Gem:  user.UserBalance.Gem,
+	}, nil
+}
+
+func (g *gameUseCase) GetUserGameData(ctx context.Context, userID int64) (res *entities.Game, err error) {
+	isDailyRewardAvailable, err := g.userUseCase.IsDailyRewardAvailable(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &entities.Game{
+		DailyRewardAvailable: isDailyRewardAvailable,
 	}, nil
 }

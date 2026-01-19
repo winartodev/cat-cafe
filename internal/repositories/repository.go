@@ -16,6 +16,7 @@ func (r *BaseRepository) GetTx() *sql.Tx {
 }
 
 type Repository struct {
+	RewardRepository          RewardRepository
 	DailyRewardRepository     DailyRewardRepository
 	UserRepository            UserRepository
 	UserDailyRewardRepository UserDailyRewardRepository
@@ -23,6 +24,7 @@ type Repository struct {
 
 func SetupRepository(db *sql.DB, client *redis.Client) *Repository {
 	return &Repository{
+		RewardRepository:          NewRewardRepository(db, client),
 		DailyRewardRepository:     NewDailyRewardsRepository(db, client),
 		UserRepository:            NewUserRepository(db, client),
 		UserDailyRewardRepository: NewUserDailyRewardRepository(db, client),

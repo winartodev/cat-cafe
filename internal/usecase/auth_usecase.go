@@ -13,26 +13,28 @@ import (
 )
 
 type AuthUseCase interface {
-	Login(ctx context.Context, authCode string) (authToken *string, user *entities.User, err error)
+	Login(ctx context.Context, authCode string) (authToken *string, user *entities.User, game *entities.Game, err error)
 	Logout(ctx context.Context, tokenString string, userID int64) error
 	GetUserByID(ctx context.Context, userID int64) (*entities.User, error)
 }
 
 type authUseCase struct {
 	userUseCase UserUseCase
+	gameUseCase GameUseCase
 	userRepo    repositories.UserRepository
 	jwt_        *jwt.JWT
 }
 
-func NewAuthUseCase(userUseCase UserUseCase, userRepo repositories.UserRepository, jwt_ *jwt.JWT) AuthUseCase {
+func NewAuthUseCase(userUseCase UserUseCase, gameUseCase GameUseCase, userRepo repositories.UserRepository, jwt_ *jwt.JWT) AuthUseCase {
 	return &authUseCase{
 		userUseCase: userUseCase,
+		gameUseCase: gameUseCase,
 		userRepo:    userRepo,
 		jwt_:        jwt_,
 	}
 }
 
-func (a *authUseCase) Login(ctx context.Context, authCode string) (authToken *string, user *entities.User, err error) {
+func (a *authUseCase) Login(ctx context.Context, authCode string) (authToken *string, user *entities.User, game *entities.Game, err error) {
 	// TODO: We want to exchange auth_code with Midtrans
 	emailFromProvider := authCode
 	user, err = a.userUseCase.GetUserByEmail(ctx, emailFromProvider)
@@ -47,23 +49,30 @@ func (a *authUseCase) Login(ctx context.Context, authCode string) (authToken *st
 
 			newUser, err := a.userUseCase.CreateUser(ctx, userData)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 
 			user = newUser
 		} else {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	} else {
 		// TODO: We update existing user data based on user data from midtrans
 	}
 
-	token, err := a.jwt_.GenerateToken(user.ID, user.Email)
+	gameData, err := a.gameUseCase.GetUserGameData(ctx, user.ID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return &token, user, nil
+	gameData.UserBalance = user.UserBalance
+
+	token, err := a.jwt_.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return &token, user, gameData, nil
 }
 
 func (a *authUseCase) Logout(ctx context.Context, tokenString string, userID int64) error {

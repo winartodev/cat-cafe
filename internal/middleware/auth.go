@@ -54,10 +54,10 @@ func (m *middleware) WithUserAuth(h fiber.Handler) fiber.Handler {
 			return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrInvalidToken)
 		}
 
-		userCache, err := m.userRepository.GetUserRedis(ctx, claims.UserID)
+		userCache, err := m.userRepository.GetUserByIDDB(ctx, claims.UserID)
 		if err == nil {
 			c.Locals(helper.ContextUserKey, userCache)
-			c.Locals(helper.ContextUserIDKey, userCache.UserID)
+			c.Locals(helper.ContextUserIDKey, userCache.ID)
 			c.Locals(helper.ContextEmailKey, userCache.Email)
 		} else {
 			c.Locals(helper.ContextUserIDKey, claims.UserID)

@@ -15,6 +15,7 @@ type UserUseCase interface {
 	GetUserDailyRewardByID(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error)
 	GetUserBalance(ctx context.Context, userID int64) (res *entities.UserBalance, err error)
 	GetUserByEmail(ctx context.Context, email string) (res *entities.User, err error)
+	IsDailyRewardAvailable(ctx context.Context, userID int64) (isAvailable bool, err error)
 }
 
 type userUseCase struct {
@@ -45,10 +46,10 @@ func (c *userUseCase) CreateUser(ctx context.Context, data entities.User) (res *
 }
 
 func (c *userUseCase) GetUserByID(ctx context.Context, userID int64) (res *entities.User, err error) {
-	userCache, err := c.userRepo.GetUserRedis(ctx, userID)
-	if err == nil && userCache != nil {
-		return entities.UserFromCache(userCache), nil
-	}
+	//userCache, err := c.userRepo.GetUserRedis(ctx, userID)
+	//if err == nil && userCache != nil {
+	//	return entities.UserFromCache(userCache), nil
+	//}
 
 	user, err := c.userRepo.GetUserByIDDB(ctx, userID)
 	if err != nil {
@@ -59,25 +60,25 @@ func (c *userUseCase) GetUserByID(ctx context.Context, userID int64) (res *entit
 		return nil, apperror.ErrRecordNotFound
 	}
 
-	go func(u *entities.User) {
-		_ = c.userRepo.SetUserRedis(context.Background(), userID, u.ToCache(), 24*time.Hour)
-	}(user)
+	//go func(u *entities.User) {
+	//	_ = c.userRepo.SetUserRedis(context.Background(), userID, u.ToCache(), 24*time.Hour)
+	//}(user)
 
 	return user, nil
 }
 
 func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error) {
-	progress, err := c.userDailyRewardRepo.GetUserDailyRewardRedis(ctx, userID)
-	if err == nil && progress != nil {
-		return progress, nil
-	}
+	//progress, err := c.userDailyRewardRepo.GetUserDailyRewardRedis(ctx, userID)
+	//if err == nil && progress != nil {
+	//	return progress, nil
+	//}
 
 	user, err := c.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	progress, err = c.userDailyRewardRepo.GetUserDailyRewardByIDDB(ctx, user.ID)
+	progress, err := c.userDailyRewardRepo.GetUserDailyRewardByIDDB(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +87,9 @@ func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) 
 		return nil, nil
 	}
 
-	go func(p *entities.UserDailyReward) {
-		_ = c.userDailyRewardRepo.SetUserDailyRewardRedis(context.Background(), userID, p, 24*time.Hour)
-	}(progress)
+	//go func(p *entities.UserDailyReward) {
+	//	_ = c.userDailyRewardRepo.SetUserDailyRewardRedis(context.Background(), userID, p, 24*time.Hour)
+	//}(progress)
 
 	return progress, nil
 }
@@ -121,4 +122,26 @@ func (c *userUseCase) GetUserByEmail(ctx context.Context, email string) (res *en
 	}
 
 	return user, nil
+}
+
+func (d *userUseCase) IsDailyRewardAvailable(ctx context.Context, userID int64) (isAvailable bool, err error) {
+	progression, err := d.GetUserDailyRewardByID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	now := helper.NowUTC()
+	today := now.Truncate(24 * time.Hour)
+
+	if progression == nil {
+		progression = &entities.UserDailyReward{LongestStreak: 0, CurrentStreak: 0, LastClaimDate: nil}
+	} else if progression.LastClaimDate != nil {
+		// Check if user already claimed today
+		lastClaim := progression.LastClaimDate.UTC().Truncate(24 * time.Hour)
+		if today.Equal(lastClaim) {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

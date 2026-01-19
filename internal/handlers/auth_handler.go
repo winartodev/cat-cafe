@@ -26,12 +26,12 @@ func (a *AuthHandler) Login(c *fiber.Ctx) error {
 		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrBadRequest)
 	}
 
-	token, user, err := a.AuthUseCase.Login(c.Context(), authCode)
+	token, user, gameData, err := a.AuthUseCase.Login(c.Context(), authCode)
 	if err != nil {
 		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
 	}
 
-	return response.SuccessResponse(c, fiber.StatusOK, "Login Success", dto.ToLoginResponse(token, user), nil)
+	return response.SuccessResponse(c, fiber.StatusOK, "Login Success", dto.ToLoginResponse(token, user, gameData), nil)
 }
 
 func (a *AuthHandler) Logout(c *fiber.Ctx) error {

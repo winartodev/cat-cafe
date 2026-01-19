@@ -21,11 +21,11 @@ type UserDailyRewardRepository interface {
 	WithTx(tx *sql.Tx) UserDailyRewardRepository
 
 	GetUserDailyRewardByIDDB(ctx context.Context, id int64) (res *entities.UserDailyReward, err error)
-	UpsertUserProgressionWithTx(ctx context.Context, userID int64, streak int64, lastClaim time.Time) (err error)
+	UpsertUserProgressionWithTx(ctx context.Context, userID int64, longestStreak int64, currentStreak int64, lastClaim time.Time) (err error)
 
-	GetUserDailyRewardRedis(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error)
-	SetUserDailyRewardRedis(ctx context.Context, userID int64, progress *entities.UserDailyReward, ttl time.Duration) (err error)
-	DeleteUserDailyRewardRedis(ctx context.Context, userID int64) error
+	//GetUserDailyRewardRedis(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error)
+	//SetUserDailyRewardRedis(ctx context.Context, userID int64, progress *entities.UserDailyReward, ttl time.Duration) (err error)
+	//DeleteUserDailyRewardRedis(ctx context.Context, userID int64) error
 }
 
 type userDailyRewardRepository struct {
@@ -46,9 +46,10 @@ func (r *userDailyRewardRepository) WithTx(tx *sql.Tx) UserDailyRewardRepository
 
 func (r *userDailyRewardRepository) GetUserDailyRewardByIDDB(ctx context.Context, id int64) (res *entities.UserDailyReward, err error) {
 	var data entities.UserDailyReward
-	err = r.db.QueryRowContext(ctx, getUserDailyRewardQuery, id).Scan(
+	err = r.db.QueryRowContext(ctx, getUserDailyRewardProgressQuery, id).Scan(
 		&data.ID,
 		&data.UserID,
+		&data.LongestStreak,
 		&data.CurrentStreak,
 		&data.LastClaimDate,
 	)
@@ -62,16 +63,17 @@ func (r *userDailyRewardRepository) GetUserDailyRewardByIDDB(ctx context.Context
 	return &data, err
 }
 
-func (r *userDailyRewardRepository) UpsertUserProgressionWithTx(ctx context.Context, userID int64, streak int64, lastClaim time.Time) (err error) {
+func (r *userDailyRewardRepository) UpsertUserProgressionWithTx(ctx context.Context, userID int64, longestStreak int64, currentStreak int64, lastClaim time.Time) (err error) {
 	if r.tx == nil {
 		return apperror.ErrRequiredActiveTx
 	}
 
 	now := time.Now()
 
-	_, err = r.tx.ExecContext(ctx, upsertUserDailyRewardQuery,
+	_, err = r.tx.ExecContext(ctx, upsertUserDailyRewardProgressQuery,
 		userID,
-		streak,
+		longestStreak,
+		currentStreak,
 		lastClaim,
 		now,
 	)

@@ -28,29 +28,32 @@ const (
 		FROM users WHERE email = $1
 	`
 
-	getUserDailyRewardQuery = `
+	getUserDailyRewardProgressQuery = `
 		SELECT 
 		    id,
 		    user_id, 
+		    longest_streak,
 		    current_streak,
 		    last_claim_date 
-		FROM user_daily_rewards
+		FROM user_daily_reward_progress
 		WHERE user_id = $1
 	`
 
 	getUserBalanceByIDQuery = `SELECT coin, gem FROM users WHERE id = $1`
 
-	upsertUserDailyRewardQuery = `
-		INSERT INTO user_daily_rewards 
+	upsertUserDailyRewardProgressQuery = `
+		INSERT INTO user_daily_reward_progress 
 		    (
 		     user_id,
+		     longest_streak,
 		     current_streak,
 		     last_claim_date,
 		     updated_at
 		    ) 
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT  (user_id)
 		DO UPDATE SET 
+		    longest_streak = EXCLUDED.longest_streak,
 		    current_streak = EXCLUDED.current_streak,
 		    last_claim_date = EXCLUDED.last_claim_date,
 			updated_at=EXCLUDED.updated_at
