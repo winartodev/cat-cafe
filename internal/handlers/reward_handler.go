@@ -4,13 +4,15 @@ import (
 	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/winartodev/cat-cafe/internal/dto"
-	"github.com/winartodev/cat-cafe/internal/middleware"
 	"github.com/winartodev/cat-cafe/internal/usecase"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/helper"
 	"github.com/winartodev/cat-cafe/pkg/response"
 )
 
+// RewardHandler is used for manage rewards
+//
+// included: reward types, rewards, daily rewards
 type RewardHandler struct {
 	RewardUseCase      usecase.RewardUseCase
 	DailyRewardUseCase usecase.DailyRewardUseCase
@@ -219,8 +221,8 @@ func (h *RewardHandler) ToggleStatusDailyReward(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Reward Successfully y", nil, nil)
 }
 
-func (h *RewardHandler) Route(r fiber.Router, m middleware.Middleware) error {
-	reward := r.Group("/rewards")
+func (h *RewardHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
+	reward := internalAuth.Group("/rewards")
 
 	// Reward Types Management
 	reward.Post("/types", h.CreateRewardType)

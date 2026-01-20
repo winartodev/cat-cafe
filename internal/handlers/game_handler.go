@@ -5,13 +5,13 @@ import (
 	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/winartodev/cat-cafe/internal/dto"
-	"github.com/winartodev/cat-cafe/internal/middleware"
 	"github.com/winartodev/cat-cafe/internal/usecase"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/helper"
 	"github.com/winartodev/cat-cafe/pkg/response"
 )
 
+// GameHandler is used for interaction with public players
 type GameHandler struct {
 	GameUseCase        usecase.GameUseCase
 	DailyRewardUseCase usecase.DailyRewardUseCase
@@ -72,15 +72,30 @@ func (h *GameHandler) ClaimReward(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Claimed Successfully", dto.ToClaimDailyRewardResponse(reward, newBalance), nil)
 }
 
-func (h *GameHandler) Route(r fiber.Router, m middleware.Middleware) error {
-	game := r.Group("/game")
+func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
+
+	stages, err := h.GameUseCase.GetGameStages(ctx, userID)
+	if err != nil {
+		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Current Stage Successfully Retrieved", dto.ToUserGameStageResponses(stages), nil)
+}
+
+func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
+	game := userAuth.Group("/game")
 
 	// Player game interactions
-	game.Post("/sync-balance", m.WithUserAuth(h.SyncBalance))
+	game.Post("/sync-balance", h.SyncBalance)
+
+	// Player game stages
+	game.Get("/stages", h.GetCurrentStage)
 
 	// Player daily reward interactions
-	game.Get("/daily-reward/status", m.WithUserAuth(h.GetDailyRewardStatus))
-	game.Post("/daily-reward/claim", m.WithUserAuth(h.ClaimReward))
+	game.Get("/daily-reward/status", h.GetDailyRewardStatus)
+	game.Post("/daily-reward/claim", h.ClaimReward)
 
 	return nil
 }

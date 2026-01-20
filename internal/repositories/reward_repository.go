@@ -12,6 +12,7 @@ import (
 )
 
 type RewardRepository interface {
+	WithTx(tx *sql.Tx) RewardRepository
 	CreateRewardTypeDB(ctx context.Context, data entities.RewardType) (id *int64, err error)
 	UpdateRewardTypesDB(ctx context.Context, id int64, data entities.RewardType) (err error)
 	GetRewardTypeBySlugDB(ctx context.Context, slug string) (res *entities.RewardType, err error)
@@ -26,14 +27,26 @@ type RewardRepository interface {
 }
 
 type rewardRepository struct {
-	db    *sql.DB
-	redis *redis.Client
+	BaseRepository
 }
 
 func NewRewardRepository(db *sql.DB, redis *redis.Client) RewardRepository {
 	return &rewardRepository{
-		db:    db,
-		redis: redis,
+		BaseRepository{
+			db:    db,
+			pool:  db,
+			redis: redis,
+		},
+	}
+}
+
+func (r *rewardRepository) WithTx(tx *sql.Tx) RewardRepository {
+	return &rewardRepository{
+		BaseRepository{
+			db:    tx,
+			pool:  r.pool,
+			redis: r.redis,
+		},
 	}
 }
 

@@ -11,12 +11,13 @@ type UseCase struct {
 	DailyRewardUseCase DailyRewardUseCase
 	AuthUseCase        AuthUseCase
 	GameUseCase        GameUseCase
+	GameStageUseCase   GameStageUseCase
 }
 
 func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 	userUC := NewUserUseCase(
 		repo.UserRepository,
-		repo.UserDailyRewardRepository,
+		repo.UserProgressionRepository,
 	)
 
 	rewardUC := NewRewardUseCase(
@@ -25,15 +26,26 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 
 	dailyRewardUC := NewDailyRewardUseCase(
 		repo.DailyRewardRepository,
-		repo.UserDailyRewardRepository,
+		repo.UserProgressionRepository,
 		repo.UserRepository,
 		userUC,
 		rewardUC,
 	)
-	
+
+	gameStageUC := NewGameStageUseCase(
+		repo.GameStageRepository,
+		repo.StageCustomerConfigRepository,
+		repo.StageStaffConfigRepository,
+		repo.StageKitchenConfigRepository,
+		repo.StageCameraConfigRepository,
+		repo.RewardRepository,
+	)
+
 	gameUC := NewGameUseCase(
 		userUC,
 		repo.UserRepository,
+		repo.UserProgressionRepository,
+		repo.GameStageRepository,
 	)
 
 	authUC := NewAuthUseCase(
@@ -49,5 +61,6 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		DailyRewardUseCase: dailyRewardUC,
 		AuthUseCase:        authUC,
 		GameUseCase:        gameUC,
+		GameStageUseCase:   gameStageUC,
 	}
 }

@@ -20,15 +20,15 @@ const (
 )
 
 type UserRepository interface {
-	GetTx() *sql.Tx
 	WithTx(tx *sql.Tx) UserRepository
 
 	CreateUserDB(ctx context.Context, data *entities.User) (*int64, error)
 	GetUserByIDDB(ctx context.Context, id int64) (res *entities.User, err error)
+	GetUserByIDForUpdateDB(ctx context.Context, id int64) (res *entities.User, err error)
 	GetUserByEmailDB(ctx context.Context, email string) (res *entities.User, err error)
 	GetUserBalanceByIDDB(ctx context.Context, id int64) (res *entities.UserBalance, err error)
 
-	BalanceWithTx(ctx context.Context, fn func(txRepo UserRepository) error) error
+	BalanceWithTx(ctx context.Context, fn func(txRepo *sql.Tx) error) error
 	UpdateUserBalanceWithTx(ctx context.Context, userID int64, rewardType entities.UserBalanceType, amount int64) (err error)
 	UpdateLastSyncBalanceWithTx(ctx context.Context, userID int64, lastSyncTime time.Time) (err error)
 
@@ -45,7 +45,13 @@ type userRepository struct {
 }
 
 func NewUserRepository(db *sql.DB, redis *redis.Client) UserRepository {
-	return &userRepository{BaseRepository{db: db, tx: nil, redis: redis}}
+	return &userRepository{
+		BaseRepository{
+			db:    db,
+			pool:  db,
+			redis: redis,
+		},
+	}
 }
 
 func (r *userRepository) WithTx(tx *sql.Tx) UserRepository {
@@ -53,7 +59,13 @@ func (r *userRepository) WithTx(tx *sql.Tx) UserRepository {
 		return r
 	}
 
-	return &userRepository{BaseRepository{db: r.db, tx: tx}}
+	return &userRepository{
+		BaseRepository{
+			db:    tx,
+			pool:  r.pool,
+			redis: r.redis,
+		},
+	}
 }
 
 func (r *userRepository) CreateUserDB(ctx context.Context, data *entities.User) (*int64, error) {
@@ -80,6 +92,11 @@ func (r *userRepository) GetUserByIDDB(ctx context.Context, id int64) (res *enti
 	return r.scanUserRow(row)
 }
 
+func (r *userRepository) GetUserByIDForUpdateDB(ctx context.Context, id int64) (res *entities.User, err error) {
+	row := r.db.QueryRowContext(ctx, getUserByIDForUpdateQuery, id)
+	return r.scanUserRow(row)
+}
+
 func (r *userRepository) GetUserByEmailDB(ctx context.Context, email string) (res *entities.User, err error) {
 	row := r.db.QueryRowContext(ctx, getUserByEmailQuery, email)
 	return r.scanUserRow(row)
@@ -102,16 +119,15 @@ func (r *userRepository) GetUserBalanceByIDDB(ctx context.Context, id int64) (re
 	return &userBalance, nil
 }
 
-func (r *userRepository) BalanceWithTx(ctx context.Context, fn func(txRepo UserRepository) error) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+func (r *userRepository) BalanceWithTx(ctx context.Context, fn func(txRepo *sql.Tx) error) error {
+	tx, err := r.pool.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	txRepo := r.WithTx(tx)
+	defer tx.Rollback()
 
-	err = fn(txRepo)
-	if err != nil {
+	if err := fn(tx); err != nil {
 		return err
 	}
 
@@ -119,10 +135,6 @@ func (r *userRepository) BalanceWithTx(ctx context.Context, fn func(txRepo UserR
 }
 
 func (r *userRepository) UpdateUserBalanceWithTx(ctx context.Context, userID int64, balanceType entities.UserBalanceType, amount int64) error {
-	if r.tx == nil {
-		return apperror.ErrRequiredActiveTx
-	}
-
 	var query string
 	switch balanceType {
 	case entities.BalanceTypeCoin:
@@ -133,18 +145,14 @@ func (r *userRepository) UpdateUserBalanceWithTx(ctx context.Context, userID int
 		return apperror.ErrUnknownRewardType
 	}
 
-	_, err := r.tx.ExecContext(ctx, query, amount, userID)
+	_, err := r.db.ExecContext(ctx, query, amount, userID)
 
 	return err
 }
 
 func (r *userRepository) UpdateLastSyncBalanceWithTx(ctx context.Context, userID int64, lastSyncTime time.Time) (err error) {
-	if r.tx == nil {
-		return apperror.ErrRequiredActiveTx
-	}
-
 	now := helper.NowUTC()
-	_, err = r.tx.ExecContext(ctx, updateLastSyncBalanceQuery, lastSyncTime, now, userID)
+	_, err = r.db.ExecContext(ctx, updateLastSyncBalanceQuery, lastSyncTime, now, userID)
 	if err != nil {
 		return err
 	}

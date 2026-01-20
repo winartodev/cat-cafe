@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
@@ -25,26 +26,26 @@ type DailyRewardUseCase interface {
 }
 
 type dailyRewardUseCase struct {
-	userUseCase         UserUseCase
-	rewardUseCase       RewardUseCase
-	dailyRewardRepo     repositories.DailyRewardRepository
-	userDailyRewardRepo repositories.UserDailyRewardRepository
-	userRepo            repositories.UserRepository
+	userUseCase     UserUseCase
+	rewardUseCase   RewardUseCase
+	dailyRewardRepo repositories.DailyRewardRepository
+	userProgression repositories.UserProgressionRepository
+	userRepo        repositories.UserRepository
 }
 
 func NewDailyRewardUseCase(
 	dailyRewardRepo repositories.DailyRewardRepository,
-	userDailyRewardRepo repositories.UserDailyRewardRepository,
+	userProgression repositories.UserProgressionRepository,
 	userRepo repositories.UserRepository,
 	userUseCase UserUseCase,
 	rewardUseCase RewardUseCase,
 ) DailyRewardUseCase {
 	return &dailyRewardUseCase{
-		userUseCase:         userUseCase,
-		rewardUseCase:       rewardUseCase,
-		dailyRewardRepo:     dailyRewardRepo,
-		userDailyRewardRepo: userDailyRewardRepo,
-		userRepo:            userRepo,
+		userUseCase:     userUseCase,
+		rewardUseCase:   rewardUseCase,
+		dailyRewardRepo: dailyRewardRepo,
+		userProgression: userProgression,
+		userRepo:        userRepo,
 	}
 }
 
@@ -247,48 +248,57 @@ func (d *dailyRewardUseCase) ClaimDailyReward(ctx context.Context) (dailyReward 
 		return nil, nil, apperror.ErrUnauthorized
 	}
 
-	progression, err := d.userUseCase.GetUserDailyRewardByID(ctx, userID)
-	if err != nil {
-		return nil, nil, err
-	}
+	// Start transaction early to lock the user row
+	err = d.dailyRewardRepo.DailyRewardWithTx(ctx, func(tx *sql.Tx) error {
+		userRepoTx := d.userRepo.WithTx(tx)
+		userProgressionTx := d.userProgression.WithTx(tx)
 
-	now := helper.NowUTC()
-	today := now.Truncate(24 * time.Hour)
-
-	// Initialize progression for new users who haven't claimed any rewards yet
-	if progression == nil {
-		progression = &entities.UserDailyReward{LongestStreak: 0, CurrentStreak: 0, LastClaimDate: nil}
-	} else if progression.LastClaimDate != nil {
-		// Check if user already claimed today
-		lastClaim := progression.LastClaimDate.UTC().Truncate(24 * time.Hour)
-		if today.Equal(lastClaim) {
-			return nil, nil, apperror.ErrAlreadyClaimed
+		// Lock user row to prevent concurrent claims
+		_, err = userRepoTx.GetUserByIDForUpdateDB(ctx, userID)
+		if err != nil {
+			return err
 		}
 
-		diffDay := today.Sub(lastClaim).Hours() / 24
-		if diffDay > 1 {
-			progression.CurrentStreak = 0
+		// Re-fetch progression inside the transaction/lock
+		progression, err := userProgressionTx.GetUserDailyRewardByIDDB(ctx, userID)
+		if err != nil {
+			return err
 		}
-	}
 
-	// Calculate which day to claim in the 7-day cycle
-	// LongestStreak tracks total claims, rewardIdx maps to cycle position (0-6)
-	rewardIdx := progression.LongestStreak % maxDailyRewardDays
-	dayToClaim := rewardIdx + 1
+		now := helper.NowUTC()
+		today := now.Truncate(24 * time.Hour)
 
-	dailyReward, err = d.getDailyRewardByDay(ctx, dayToClaim)
-	if err != nil {
-		return nil, nil, err
-	}
+		// Initialize progression for new users who haven't claimed any rewards yet
+		if progression == nil {
+			progression = &entities.UserDailyReward{LongestStreak: 0, CurrentStreak: 0, LastClaimDate: nil}
+		} else if progression.LastClaimDate != nil {
+			// Check if user already claimed today
+			lastClaim := progression.LastClaimDate.UTC().Truncate(24 * time.Hour)
+			if today.Equal(lastClaim) {
+				return apperror.ErrAlreadyClaimed
+			}
 
-	rewardType := dailyReward.Reward.RewardType
-	rewardTypeEnum, err := entities.ToRewardType(rewardType.Slug)
-	if err != nil {
-		return nil, nil, err
-	}
+			diffDay := today.Sub(lastClaim).Hours() / 24
+			if diffDay > 1 {
+				progression.CurrentStreak = 0
+			}
+		}
 
-	// Update user progression
-	err = d.dailyRewardRepo.DailyRewardWithTx(ctx, func(txRepo repositories.DailyRewardRepository) error {
+		// Calculate which day to claim in the 7-day cycle
+		// LongestStreak tracks total claims, rewardIdx maps to cycle position (0-6)
+		rewardIdx := progression.LongestStreak % maxDailyRewardDays
+		dayToClaim := rewardIdx + 1
+
+		dailyReward, err = d.getDailyRewardByDay(ctx, dayToClaim)
+		if err != nil {
+			return err
+		}
+
+		rewardType := dailyReward.Reward.RewardType
+		rewardTypeEnum, err := entities.ToRewardType(rewardType.Slug)
+		if err != nil {
+			return err
+		}
 
 		// Increment the streak counter after successful claim
 		newLongestStreak := progression.LongestStreak + 1
@@ -299,13 +309,8 @@ func (d *dailyRewardUseCase) ClaimDailyReward(ctx context.Context) (dailyReward 
 			newLongestStreak = newCurrentStreak
 		}
 
-		rawTx := txRepo.GetTx()
-
-		userDailyRewardTx := d.userDailyRewardRepo.WithTx(rawTx)
-		userRepoTx := d.userRepo.WithTx(rawTx)
-
 		// Update user's streak and last claim date
-		err = userDailyRewardTx.UpsertUserProgressionWithTx(ctx, userID, newLongestStreak, newCurrentStreak, now)
+		err = userProgressionTx.UpsertDailyRewardProgressionDB(ctx, userID, newLongestStreak, newCurrentStreak, now)
 		if err != nil {
 			return err
 		}
@@ -334,14 +339,15 @@ func (d *dailyRewardUseCase) ClaimDailyReward(ctx context.Context) (dailyReward 
 	// Clear the cache so that the next request retrieves the latest progress data from the database
 	//_ = d.userDailyRewardRepo.DeleteUserDailyRewardRedis(ctx, userID)
 
-	// Get updated balance for rewards that are stored in DB
-	var userBalance *entities.UserBalance
-	if rewardTypeEnum.RequiresBalanceUpdate() {
-		userBalance, err = d.userUseCase.GetUserBalance(ctx, userID)
-		if err != nil {
-			return nil, nil, err
+	if dailyReward != nil {
+		rewardTypeEnum, _ := entities.ToRewardType(dailyReward.Reward.RewardType.Slug)
+		if rewardTypeEnum.RequiresBalanceUpdate() {
+			newBalance, err = d.userUseCase.GetUserBalance(ctx, userID)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 	}
 
-	return dailyReward, userBalance, err
+	return dailyReward, newBalance, err
 }

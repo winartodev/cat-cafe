@@ -19,14 +19,17 @@ type UserUseCase interface {
 }
 
 type userUseCase struct {
-	userRepo            repositories.UserRepository
-	userDailyRewardRepo repositories.UserDailyRewardRepository
+	userRepo        repositories.UserRepository
+	userProgression repositories.UserProgressionRepository
 }
 
-func NewUserUseCase(userRepo repositories.UserRepository, userDailyRewardRepo repositories.UserDailyRewardRepository) UserUseCase {
+func NewUserUseCase(
+	userRepo repositories.UserRepository,
+	userProgression repositories.UserProgressionRepository,
+) UserUseCase {
 	return &userUseCase{
-		userRepo:            userRepo,
-		userDailyRewardRepo: userDailyRewardRepo,
+		userRepo:        userRepo,
+		userProgression: userProgression,
 	}
 }
 
@@ -68,7 +71,7 @@ func (c *userUseCase) GetUserByID(ctx context.Context, userID int64) (res *entit
 }
 
 func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error) {
-	//progress, err := c.userDailyRewardRepo.GetUserDailyRewardRedis(ctx, userID)
+	//progress, err := c.userProgressionRepo.GetUserDailyRewardRedis(ctx, userID)
 	//if err == nil && progress != nil {
 	//	return progress, nil
 	//}
@@ -78,7 +81,7 @@ func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) 
 		return nil, err
 	}
 
-	progress, err := c.userDailyRewardRepo.GetUserDailyRewardByIDDB(ctx, user.ID)
+	progress, err := c.userProgression.GetUserDailyRewardByIDDB(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +91,7 @@ func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) 
 	}
 
 	//go func(p *entities.UserDailyReward) {
-	//	_ = c.userDailyRewardRepo.SetUserDailyRewardRedis(context.Background(), userID, p, 24*time.Hour)
+	//	_ = c.userProgressionRepo.SetUserDailyRewardRedis(context.Background(), userID, p, 24*time.Hour)
 	//}(progress)
 
 	return progress, nil
@@ -124,8 +127,8 @@ func (c *userUseCase) GetUserByEmail(ctx context.Context, email string) (res *en
 	return user, nil
 }
 
-func (d *userUseCase) IsDailyRewardAvailable(ctx context.Context, userID int64) (isAvailable bool, err error) {
-	progression, err := d.GetUserDailyRewardByID(ctx, userID)
+func (c *userUseCase) IsDailyRewardAvailable(ctx context.Context, userID int64) (isAvailable bool, err error) {
+	progression, err := c.GetUserDailyRewardByID(ctx, userID)
 	if err != nil {
 		return false, err
 	}

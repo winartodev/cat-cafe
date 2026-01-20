@@ -12,7 +12,7 @@ import (
 )
 
 type Middleware interface {
-	WithUserAuth(h fiber.Handler) fiber.Handler
+	WithUserAuth() fiber.Handler
 }
 
 type middleware struct {
@@ -27,7 +27,7 @@ func NewMiddleware(jwtManager *jwt.JWT, userRepository repositories.UserReposito
 	}
 }
 
-func (m *middleware) WithUserAuth(h fiber.Handler) fiber.Handler {
+func (m *middleware) WithUserAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx := c.Context()
 		authHeader := c.Get("Authorization")
@@ -66,6 +66,6 @@ func (m *middleware) WithUserAuth(h fiber.Handler) fiber.Handler {
 
 		c.Locals(helper.ContextTokenKey, tokenString)
 
-		return h(c)
+		return c.Next()
 	}
 }

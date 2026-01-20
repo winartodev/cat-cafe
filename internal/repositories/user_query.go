@@ -22,6 +22,17 @@ const (
 		FROM users WHERE id = $1
 	`
 
+	getUserProgressionByIDQuery = `
+		SELECT 
+		* FROM user_stage_progress WHERE user
+	`
+
+	getUserByIDForUpdateQuery = `
+		SELECT 
+		    id, external_id, username, email, gem, coin
+		FROM users WHERE id = $1 FOR UPDATE
+	`
+
 	getUserByEmailQuery = `
 		SELECT 
 		    id, external_id, username, email, gem, coin

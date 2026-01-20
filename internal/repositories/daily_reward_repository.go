@@ -18,7 +18,6 @@ const (
 )
 
 type DailyRewardRepository interface {
-	GetTx() *sql.Tx
 	WithTx(tx *sql.Tx) DailyRewardRepository
 
 	CreateDailyRewardDB(ctx context.Context, data entities.DailyReward) (id *int64, err error)
@@ -28,7 +27,7 @@ type DailyRewardRepository interface {
 	UpdateDailyRewardDB(ctx context.Context, id int64, data entities.DailyReward) (err error)
 	CountDailyRewardsDB(ctx context.Context) (count int64, err error)
 
-	DailyRewardWithTx(ctx context.Context, fn func(txRepo DailyRewardRepository) error) (err error)
+	DailyRewardWithTx(ctx context.Context, fn func(txRepo *sql.Tx) error) (err error)
 
 	//GetDailyRewardsRedis(ctx context.Context) (res []entities.DailyReward, err error)
 	//SetDailyRewardsRedis(ctx context.Context, data []entities.DailyReward) (err error)
@@ -40,7 +39,13 @@ type dailyRewardRepository struct {
 }
 
 func NewDailyRewardsRepository(db *sql.DB, redis *redis.Client) DailyRewardRepository {
-	return &dailyRewardRepository{BaseRepository{db: db, tx: nil, redis: redis}}
+	return &dailyRewardRepository{
+		BaseRepository{
+			db:    db,
+			pool:  db,
+			redis: redis,
+		},
+	}
 }
 
 func (r *dailyRewardRepository) WithTx(tx *sql.Tx) DailyRewardRepository {
@@ -48,7 +53,13 @@ func (r *dailyRewardRepository) WithTx(tx *sql.Tx) DailyRewardRepository {
 		return r
 	}
 
-	return &dailyRewardRepository{BaseRepository{db: r.db, tx: tx}}
+	return &dailyRewardRepository{
+		BaseRepository{
+			db:    tx,
+			pool:  r.pool,
+			redis: r.redis,
+		},
+	}
 }
 
 func (r *dailyRewardRepository) CreateDailyRewardDB(ctx context.Context, data entities.DailyReward) (id *int64, err error) {
@@ -189,16 +200,15 @@ func (r *dailyRewardRepository) CountDailyRewardsDB(ctx context.Context) (count 
 	return count, nil
 }
 
-func (r *dailyRewardRepository) DailyRewardWithTx(ctx context.Context, fn func(txRepo DailyRewardRepository) error) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+func (r *dailyRewardRepository) DailyRewardWithTx(ctx context.Context, fn func(txRepo *sql.Tx) error) error {
+	tx, err := r.pool.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	txRepo := r.WithTx(tx)
+	defer tx.Rollback()
 
-	err = fn(txRepo)
-	if err != nil {
+	if err := fn(tx); err != nil {
 		return err
 	}
 

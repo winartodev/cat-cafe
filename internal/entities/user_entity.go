@@ -35,6 +35,15 @@ type UserBalanceCache struct {
 	Gem  int64 `json:"gem"`
 }
 
+type UserGameStageProgression struct {
+	ID          int64           `json:"id"`
+	UserID      int64           `json:"user_id"`
+	StageID     int64           `json:"stage_id"`
+	Status      GameStageStatus `json:"status"`
+	IsComplete  bool            `json:"is_complete"`
+	CompletedAt *time.Time      `json:"completed_at"`
+}
+
 func (u *User) ToCache() *UserCache {
 	cache := &UserCache{
 		UserID:     u.ID,

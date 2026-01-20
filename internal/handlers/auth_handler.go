@@ -3,7 +3,6 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/winartodev/cat-cafe/internal/dto"
-	"github.com/winartodev/cat-cafe/internal/middleware"
 	"github.com/winartodev/cat-cafe/internal/usecase"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/helper"
@@ -56,12 +55,13 @@ func (a *AuthHandler) GetUserData(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Success Get User Data", dto.ToUserResponse(res), nil)
 }
 
-func (a *AuthHandler) Route(route fiber.Router, m middleware.Middleware) error {
-	auth := route.Group("/auth")
+func (a *AuthHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
+	openAuth := open.Group("/auth")
+	openAuth.Post("/login", a.Login)
 
-	auth.Post("/login", a.Login)
-	auth.Post("/logout", m.WithUserAuth(a.Logout))
-	auth.Get("/me", m.WithUserAuth(a.GetUserData))
+	userAuthGroup := userAuth.Group("/auth")
+	userAuthGroup.Post("/logout", a.Logout)
+	userAuthGroup.Get("/me", a.GetUserData)
 
 	return nil
 }

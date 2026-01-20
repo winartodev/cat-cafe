@@ -25,7 +25,12 @@ type authUseCase struct {
 	jwt_        *jwt.JWT
 }
 
-func NewAuthUseCase(userUseCase UserUseCase, gameUseCase GameUseCase, userRepo repositories.UserRepository, jwt_ *jwt.JWT) AuthUseCase {
+func NewAuthUseCase(
+	userUseCase UserUseCase,
+	gameUseCase GameUseCase,
+	userRepo repositories.UserRepository,
+	jwt_ *jwt.JWT,
+) AuthUseCase {
 	return &authUseCase{
 		userUseCase: userUseCase,
 		gameUseCase: gameUseCase,
@@ -45,6 +50,10 @@ func (a *authUseCase) Login(ctx context.Context, authCode string) (authToken *st
 				Username:   helper.GenerateRandNumber("user@"),
 				Email:      authCode,
 				IsActive:   true,
+				UserBalance: &entities.UserBalance{
+					Gem:  0,
+					Coin: 0,
+				},
 			}
 
 			newUser, err := a.userUseCase.CreateUser(ctx, userData)
