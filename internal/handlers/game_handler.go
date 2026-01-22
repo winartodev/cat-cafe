@@ -76,12 +76,44 @@ func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
 	userID := helper.GetUserID(c)
 	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
-	stages, err := h.GameUseCase.GetGameStages(ctx, userID)
+	stages, _, err := h.GameUseCase.GetGameStages(ctx, userID)
 	if err != nil {
 		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Current Stage Successfully Retrieved", dto.ToUserGameStageResponses(stages), nil)
+}
+
+func (h *GameHandler) StartGameStage(c *fiber.Ctx) error {
+	slug, err := helper.GetParam[string](c, "slug")
+	if err != nil {
+		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+	}
+
+	userID := helper.GetUserID(c)
+
+	gameStage, config, nextStage, err := h.GameUseCase.StartGameStage(c.Context(), userID, slug)
+	if err != nil {
+		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Started", dto.ToUserDetailGameStageResponse(gameStage, config, nextStage), nil)
+}
+
+func (h *GameHandler) CompleteGameStage(c *fiber.Ctx) error {
+	slug, err := helper.GetParam[string](c, "slug")
+	if err != nil {
+		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+	}
+
+	userID := helper.GetUserID(c)
+
+	err = h.GameUseCase.CompleteGameStage(c.Context(), userID, slug)
+	if err != nil {
+		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Started", nil, nil)
 }
 
 func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
@@ -92,6 +124,8 @@ func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAu
 
 	// Player game stages
 	game.Get("/stages", h.GetCurrentStage)
+	game.Post("/stages/:slug/start", h.StartGameStage)
+	game.Post("/stages/:slug/complete", h.CompleteGameStage)
 
 	// Player daily reward interactions
 	game.Get("/daily-reward/status", h.GetDailyRewardStatus)

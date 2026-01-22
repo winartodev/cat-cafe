@@ -36,8 +36,8 @@ var (
 	// ErrBadRequest indicates that the server cannot process the request due to client error.
 	ErrBadRequest = errors.New("bad request")
 
-	// ErrInvalidIDParam occurs when the provided ID parameter is not in the correct format.
-	ErrInvalidIDParam = errors.New("invalid id param")
+	// ErrInvalidParam occurs when the provided parameter is not in the correct format.
+	ErrInvalidParam = errors.New("invalid id param")
 
 	// --- DOMAIN: DAILY REWARD ---
 
@@ -46,4 +46,9 @@ var (
 
 	// ErrUnknownRewardType indicates that the provided reward type is not defined in the system.
 	ErrUnknownRewardType = errors.New("unknown reward type")
+
+	// --- DOMAIN: GAME STAGE ---
+
+	ErrStageNotUnlocked      = errors.New("stage is locked")
+	ErrStageAlreadyCompleted = errors.New("stage already completed")
 )

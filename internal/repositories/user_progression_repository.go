@@ -10,6 +10,7 @@ import (
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/database"
+	"github.com/winartodev/cat-cafe/pkg/helper"
 	"time"
 )
 
@@ -23,8 +24,11 @@ type UserProgressionRepository interface {
 	GetUserDailyRewardByIDDB(ctx context.Context, id int64) (res *entities.UserDailyReward, err error)
 	UpsertDailyRewardProgressionDB(ctx context.Context, userID int64, longestStreak int64, currentStreak int64, lastClaim time.Time) (err error)
 
-	GetGameStageProgressionDB(ctx context.Context, userID int64) (res *entities.UserGameStageProgression, err error)
+	GetGameStageProgressionDB(ctx context.Context, userID int64, stageID int64) (res *entities.UserGameStageProgression, err error)
+	GetLatestGameStageProgressionDB(ctx context.Context, userID int64) (res *entities.UserGameStageProgression, err error)
 	CreateGameStageProgressionDB(ctx context.Context, userID int64, stageID int64) (*int64, error)
+	CheckStageProgressionExistsDB(ctx context.Context, userID int64, stageID int64) (bool, error)
+	MarkStageAsCompleteDB(ctx context.Context, userID int64, stageID int64) error
 
 	//GetUserDailyRewardRedis(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error)
 	//SetUserDailyRewardRedis(ctx context.Context, userID int64, progress *entities.UserDailyReward, ttl time.Duration) (err error)
@@ -150,8 +154,8 @@ func (r *userProgressionRepository) GetActiveGameStagesDB(ctx context.Context) (
 	return res, nil
 }
 
-func (r *userProgressionRepository) GetGameStageProgressionDB(ctx context.Context, userID int64) (res *entities.UserGameStageProgression, err error) {
-	row := r.db.QueryRowContext(ctx, getGameStageProgressionQuery, userID)
+func (r *userProgressionRepository) GetGameStageProgressionDB(ctx context.Context, userID int64, stageID int64) (res *entities.UserGameStageProgression, err error) {
+	row := r.db.QueryRowContext(ctx, getGameStageProgressionQuery, userID, stageID)
 	var data entities.UserGameStageProgression
 	err = row.Scan(
 		&data.ID,
@@ -181,6 +185,52 @@ func (r *userProgressionRepository) CreateGameStageProgressionDB(ctx context.Con
 		return nil, err
 	}
 
-	return nil, nil
+	return &id, nil
+}
 
+func (r *userProgressionRepository) CheckStageProgressionExistsDB(ctx context.Context, userID int64, stageID int64) (bool, error) {
+	var exists bool
+
+	err := r.db.QueryRowContext(ctx, checkStageProgressionExistsQuery, userID, stageID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (r *userProgressionRepository) MarkStageAsCompleteDB(ctx context.Context, userID int64, stageID int64) error {
+	result, err := r.db.ExecContext(ctx, markStageAsComplete, helper.NowUTC(), userID, stageID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return apperror.ErrNoUpdateRecord
+	}
+
+	return nil
+}
+
+func (r *userProgressionRepository) GetLatestGameStageProgressionDB(ctx context.Context, userID int64) (res *entities.UserGameStageProgression, err error) {
+	row := r.db.QueryRowContext(ctx, getLatestGameStageProgressionQuery, userID)
+	var data entities.UserGameStageProgression
+	err = row.Scan(
+		&data.ID,
+		&data.UserID,
+		&data.StageID,
+		&data.IsComplete,
+		&data.CompletedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
 }

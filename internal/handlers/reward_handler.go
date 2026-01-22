@@ -114,7 +114,7 @@ func (h *RewardHandler) GetRewardTypes(c *fiber.Ctx) error {
 func (h *RewardHandler) GetRewardTypeByID(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidIDParam)
+		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
 	}
 
 	res, err := h.RewardUseCase.GetRewardTypeByID(c.Context(), id)

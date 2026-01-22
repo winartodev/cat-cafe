@@ -19,3 +19,9 @@ type UserGameStage struct {
 	Sequence int64           `json:"sequence"`
 	Status   GameStageStatus `json:"status"`
 }
+
+type UserNextGameStageInfo struct {
+	Slug   string          `json:"slug"`
+	Name   string          `json:"name"`
+	Status GameStageStatus `json:"status"`
+}
