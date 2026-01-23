@@ -35,6 +35,9 @@ func (h *GameStageHandler) CreateGameStage(c *fiber.Ctx) error {
 		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
 	}
 
+	helper.PrettyPrint(gameStage)
+	helper.PrettyPrint(stageConfig)
+
 	return response.SuccessResponse(c, fiber.StatusCreated, "Game Stage Successfully Created", data, nil)
 }
 

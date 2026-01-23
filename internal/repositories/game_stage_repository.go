@@ -185,6 +185,7 @@ func (r *gameStageRepository) scanGameStageConfigRow(row *sql.Row) (*entities.Ga
 	var skc entities.StageKitchenConfig
 	var scc2 entities.StageCameraConfig
 	var rewardsJSON []byte
+	var kitchenStationJSON []byte
 
 	err := row.Scan(
 		&scc.CustomerSpawnTime,
@@ -201,6 +202,7 @@ func (r *gameStageRepository) scanGameStageConfigRow(row *sql.Row) (*entities.Ga
 		pq.Array(&skc.PhaseUpgradeCostMultipliers),
 		pq.Array(&skc.TableCountPerPhases),
 		&rewardsJSON,
+		&kitchenStationJSON,
 		&scc2.ZoomSize,
 		&scc2.MaxBoundX,
 		&scc2.MinBoundX,
@@ -209,11 +211,19 @@ func (r *gameStageRepository) scanGameStageConfigRow(row *sql.Row) (*entities.Ga
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
+	} else if err != nil {
+		return nil, err
 	}
 
 	if len(rewardsJSON) > 0 {
 		if err := json.Unmarshal(rewardsJSON, &gameStageConfig.KitchenPhaseReward); err != nil {
 			return nil, fmt.Errorf("parse rewards into map: %w", err)
+		}
+	}
+
+	if len(kitchenStationJSON) > 0 {
+		if err := json.Unmarshal(kitchenStationJSON, &gameStageConfig.KitchenStations); err != nil {
+			return nil, fmt.Errorf("parse kithcen stations into map: %w", err)
 		}
 	}
 

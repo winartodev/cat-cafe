@@ -35,10 +35,11 @@ type UserDetailGameStageResponse struct {
 	IsActive     bool   `json:"is_active"`
 	Sequence     int64  `json:"sequence"`
 
-	Customer *CustomerConfigDTO `json:"customer_config,omitempty"`
-	Staff    *StaffConfigDTO    `json:"staff_config,omitempty"`
-	Kitchen  *KitchenConfigDTO  `json:"kitchen_config,omitempty"`
-	Camera   *CameraConfigDTO   `json:"camera_config,omitempty"`
+	Customer        *CustomerConfigDTO  `json:"customer_config,omitempty"`
+	Staff           *StaffConfigDTO     `json:"staff_config,omitempty"`
+	KitchenStations []KitchenStationDTO `json:"kitchen_stations,omitempty"`
+	Kitchen         *KitchenConfigDTO   `json:"kitchen_config,omitempty"`
+	Camera          *CameraConfigDTO    `json:"camera_config,omitempty"`
 
 	NextStage *entities.UserNextGameStageInfo `json:"next_stage,omitempty"`
 }
@@ -74,16 +75,17 @@ func ToUserDetailGameStageResponse(
 	nextStage *entities.UserNextGameStageInfo,
 ) *UserDetailGameStageResponse {
 	return &UserDetailGameStageResponse{
-		Slug:         data.Slug,
-		Name:         data.Name,
-		StartingCoin: data.StartingCoin,
-		StagePrize:   data.StagePrize,
-		IsActive:     data.IsActive,
-		Sequence:     data.Sequence,
-		Customer:     toCustomerConfigDTO(config.CustomerConfig),
-		Staff:        toStaffConfigDTO(config.StaffConfig),
-		Kitchen:      toKitchenConfigDTO(config.KitchenConfig, config.KitchenPhaseReward),
-		Camera:       toCameraConfigDTO(config.CameraConfig),
-		NextStage:    nextStage,
+		Slug:            data.Slug,
+		Name:            data.Name,
+		StartingCoin:    data.StartingCoin,
+		StagePrize:      data.StagePrize,
+		IsActive:        data.IsActive,
+		Sequence:        data.Sequence,
+		Customer:        toCustomerConfigDTO(config.CustomerConfig),
+		Staff:           toStaffConfigDTO(config.StaffConfig),
+		KitchenStations: toKitchenStationsDTO(config.KitchenStations),
+		Kitchen:         toKitchenConfigDTO(config.KitchenConfig, config.KitchenPhaseReward),
+		Camera:          toCameraConfigDTO(config.CameraConfig),
+		NextStage:       nextStage,
 	}
 }

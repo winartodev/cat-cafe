@@ -34,20 +34,6 @@ type StageStaffConfig struct {
 	UpdatedAt            time.Time `json:"-"`
 }
 
-type StageKitchenConfig struct {
-	ID                          int64     `json:"id"`
-	StageID                     int64     `json:"stage_id"`
-	MaxLevel                    int64     `json:"max_level"`
-	UpgradeProfitMultiply       int64     `json:"upgrade_profit_multiply"`
-	UpgradeCostMultiply         int64     `json:"upgrade_cost_multiply"`
-	TransitionPhaseLevels       []int64   `json:"transition_phase_levels"`
-	PhaseProfitMultipliers      []float64 `json:"phase_profit_multipliers"`
-	PhaseUpgradeCostMultipliers []float64 `json:"phase_upgrade_cost_multipliers"`
-	TableCountPerPhases         []int64   `json:"table_count_per_phases"`
-	CreatedAt                   time.Time `json:"-"`
-	UpdatedAt                   time.Time `json:"-"`
-}
-
 type StageCameraConfig struct {
 	ID        int64     `json:"id"`
 	StageID   int64     `json:"stage_id"`
@@ -60,21 +46,10 @@ type StageCameraConfig struct {
 	UpdatedAt time.Time `json:"-"`
 }
 
-type KitchenPhaseCompletionRewards struct {
-	ID              int64     `json:"id"`
-	KitchenConfigID int64     `json:"kitchen_config_id"`
-	PhaseNumber     int64     `json:"phase_number"`
-	RewardID        int64     `json:"reward_id"`
-	CreatedAt       time.Time `json:"-"`
-	UpdatedAt       time.Time `json:"-"`
-
-	// Additional field that didn't store into db
-	RewardSlug string `json:"reward_slug"`
-}
-
 type GameStageConfig struct {
 	CustomerConfig     *StageCustomerConfig
 	StaffConfig        *StageStaffConfig
+	KitchenStations    []KitchenStation
 	KitchenConfig      *StageKitchenConfig
 	CameraConfig       *StageCameraConfig
 	KitchenPhaseReward []KitchenPhaseCompletionRewards

@@ -12,10 +12,11 @@ type BaseGameStageRequest struct {
 	IsActive     bool   `json:"is_active"`
 	Sequence     int64  `json:"sequence"`
 
-	Customer *CustomerConfigDTO    `json:"customer_config"`
-	Staff    *StaffConfigDTO       `json:"staff_config"`
-	Kitchen  *KitchenConfigRequest `json:"kitchen_config"`
-	Camera   *CameraConfigDTO      `json:"camera_config"`
+	Customer        *CustomerConfigDTO    `json:"customer_config"`
+	Staff           *StaffConfigDTO       `json:"staff_config"`
+	KitchenStations []KitchenStationDTO   `json:"kitchen_stations"`
+	KitchenConfig   *KitchenConfigRequest `json:"kitchen_config"`
+	Camera          *CameraConfigDTO      `json:"camera_config"`
 }
 
 type CreateGameStageRequest struct {
@@ -29,17 +30,6 @@ type UpdateGameStageRequest struct {
 
 type UpdateGameStageResponse struct {
 	BaseGameStageRequest
-}
-
-type KitchenConfigRequest struct {
-	MaxLevel                    int64                `json:"max_level"`
-	UpgradeProfitMultiply       int64                `json:"upgrade_profit_multiply"`
-	UpgradeCostMultiply         int64                `json:"upgrade_cost_multiply"`
-	TransitionPhaseLevels       []int64              `json:"transition_phase_levels"`
-	PhaseProfitMultipliers      []float64            `json:"phase_profit_multipliers"`
-	PhaseUpgradeCostMultipliers []float64            `json:"phase_upgrade_cost_multipliers"`
-	TableCountPerPhases         []int64              `json:"table_count_per_phases"`
-	PhaseRewards                []PhaseRewardRequest `json:"phase_rewards"`
 }
 
 type PhaseRewardRequest struct {
@@ -56,10 +46,11 @@ type GameStageDetailResponse struct {
 	IsActive     bool   `json:"is_active"`
 	Sequence     int64  `json:"sequence"`
 
-	Customer *CustomerConfigDTO `json:"customer_config,omitempty"`
-	Staff    *StaffConfigDTO    `json:"staff_config,omitempty"`
-	Kitchen  *KitchenConfigDTO  `json:"kitchen_config,omitempty"`
-	Camera   *CameraConfigDTO   `json:"camera_config,omitempty"`
+	Customer       *CustomerConfigDTO  `json:"customer_config,omitempty"`
+	Staff          *StaffConfigDTO     `json:"staff_config,omitempty"`
+	KitchenStation []KitchenStationDTO `json:"kitchen_station"`
+	KitchenConfig  *KitchenConfigDTO   `json:"kitchen_config,omitempty"`
+	Camera         *CameraConfigDTO    `json:"camera_config,omitempty"`
 }
 
 type GameStageResponse struct {
@@ -84,18 +75,6 @@ type StaffConfigDTO struct {
 	StartingStaffHelper  string `json:"starting_staff_helper"`
 }
 
-type KitchenConfigDTO struct {
-	MaxLevel                    int64     `json:"max_level"`
-	UpgradeProfitMultiply       int64     `json:"upgrade_profit_multiply"`
-	UpgradeCostMultiply         int64     `json:"upgrade_cost_multiply"`
-	TransitionPhaseLevels       []int64   `json:"transition_phase_levels"`
-	PhaseProfitMultipliers      []float64 `json:"phase_profit_multipliers"`
-	PhaseUpgradeCostMultipliers []float64 `json:"phase_upgrade_cost_multipliers"`
-	TableCountPerPhases         []int64   `json:"table_count_per_phases"`
-
-	PhaseRewards []KitchenPhaseCompletionRewardDTO `json:"phase_rewards,omitempty"`
-}
-
 type CameraConfigDTO struct {
 	ZoomSize  float64 `json:"zoom_size"`
 	MinBoundX float64 `json:"min_bound_x"`
@@ -104,13 +83,8 @@ type CameraConfigDTO struct {
 	MaxBoundY float64 `json:"max_bound_y"`
 }
 
-type KitchenPhaseCompletionRewardDTO struct {
-	PhaseNumber int64  `json:"phase_number"`
-	Reward      string `json:"reward"`
-}
-
 func (d *BaseGameStageRequest) ValidateConfig() error {
-	if d.Customer == nil || d.Staff == nil || d.Kitchen == nil || d.Camera == nil {
+	if d.Customer == nil || d.Staff == nil || d.KitchenConfig == nil || d.Camera == nil || d.KitchenStations == nil {
 		return errors.New("invalid request")
 	}
 
@@ -149,37 +123,6 @@ func toStaffConfigDTO(data *entities.StageStaffConfig) *StaffConfigDTO {
 	}
 }
 
-func toKitchenConfigDTO(data *entities.StageKitchenConfig, kitchenPhaseReward []entities.KitchenPhaseCompletionRewards) *KitchenConfigDTO {
-	if data == nil {
-		return nil
-	}
-	return &KitchenConfigDTO{
-		MaxLevel:                    data.MaxLevel,
-		UpgradeProfitMultiply:       data.UpgradeProfitMultiply,
-		UpgradeCostMultiply:         data.UpgradeCostMultiply,
-		TransitionPhaseLevels:       data.TransitionPhaseLevels,
-		PhaseProfitMultipliers:      data.PhaseProfitMultipliers,
-		PhaseUpgradeCostMultipliers: data.PhaseUpgradeCostMultipliers,
-		TableCountPerPhases:         data.TableCountPerPhases,
-		PhaseRewards:                toKitchenPhaseRewards(kitchenPhaseReward),
-	}
-}
-
-func toKitchenPhaseRewards(rewards []entities.KitchenPhaseCompletionRewards) []KitchenPhaseCompletionRewardDTO {
-	if len(rewards) == 0 {
-		return nil
-	}
-	kitchenPhaseRewards := make([]KitchenPhaseCompletionRewardDTO, 0, len(rewards))
-	for _, reward := range rewards {
-		kitchenPhaseRewards = append(kitchenPhaseRewards, KitchenPhaseCompletionRewardDTO{
-			PhaseNumber: reward.PhaseNumber,
-			Reward:      reward.RewardSlug,
-		})
-	}
-
-	return kitchenPhaseRewards
-}
-
 func toCameraConfigDTO(data *entities.StageCameraConfig) *CameraConfigDTO {
 	return &CameraConfigDTO{
 		ZoomSize:  data.ZoomSize,
@@ -208,17 +151,18 @@ func ToGameStageDetailResponse(data *entities.GameStage, gameConfig *entities.Ga
 	}
 
 	return &GameStageDetailResponse{
-		ID:           data.ID,
-		Slug:         data.Slug,
-		Name:         data.Name,
-		StartingCoin: data.StartingCoin,
-		StagePrize:   data.StagePrize,
-		IsActive:     data.IsActive,
-		Sequence:     data.Sequence,
-		Customer:     toCustomerConfigDTO(gameConfig.CustomerConfig),
-		Staff:        toStaffConfigDTO(gameConfig.StaffConfig),
-		Kitchen:      toKitchenConfigDTO(gameConfig.KitchenConfig, gameConfig.KitchenPhaseReward),
-		Camera:       toCameraConfigDTO(gameConfig.CameraConfig),
+		ID:             data.ID,
+		Slug:           data.Slug,
+		Name:           data.Name,
+		StartingCoin:   data.StartingCoin,
+		StagePrize:     data.StagePrize,
+		IsActive:       data.IsActive,
+		Sequence:       data.Sequence,
+		Customer:       toCustomerConfigDTO(gameConfig.CustomerConfig),
+		Staff:          toStaffConfigDTO(gameConfig.StaffConfig),
+		KitchenStation: toKitchenStationsDTO(gameConfig.KitchenStations),
+		KitchenConfig:  toKitchenConfigDTO(gameConfig.KitchenConfig, gameConfig.KitchenPhaseReward),
+		Camera:         toCameraConfigDTO(gameConfig.CameraConfig),
 	}
 }
 
@@ -254,13 +198,13 @@ func (d *BaseGameStageRequest) toEntitiesCommon() (*entities.GameStageConfig, er
 	}
 
 	gameStageConfig.KitchenConfig = &entities.StageKitchenConfig{
-		MaxLevel:                    d.Kitchen.MaxLevel,
-		UpgradeProfitMultiply:       d.Kitchen.UpgradeProfitMultiply,
-		UpgradeCostMultiply:         d.Kitchen.UpgradeCostMultiply,
-		TransitionPhaseLevels:       d.Kitchen.TransitionPhaseLevels,
-		PhaseProfitMultipliers:      d.Kitchen.PhaseProfitMultipliers,
-		PhaseUpgradeCostMultipliers: d.Kitchen.PhaseUpgradeCostMultipliers,
-		TableCountPerPhases:         d.Kitchen.TableCountPerPhases,
+		MaxLevel:                    d.KitchenConfig.MaxLevel,
+		UpgradeProfitMultiply:       d.KitchenConfig.UpgradeProfitMultiply,
+		UpgradeCostMultiply:         d.KitchenConfig.UpgradeCostMultiply,
+		TransitionPhaseLevels:       d.KitchenConfig.TransitionPhaseLevels,
+		PhaseProfitMultipliers:      d.KitchenConfig.PhaseProfitMultipliers,
+		PhaseUpgradeCostMultipliers: d.KitchenConfig.PhaseUpgradeCostMultipliers,
+		TableCountPerPhases:         d.KitchenConfig.TableCountPerPhases,
 	}
 
 	gameStageConfig.CameraConfig = &entities.StageCameraConfig{
@@ -272,7 +216,7 @@ func (d *BaseGameStageRequest) toEntitiesCommon() (*entities.GameStageConfig, er
 	}
 
 	var kitchenPhaseRewards []entities.KitchenPhaseCompletionRewards
-	for _, phaseData := range d.Kitchen.PhaseRewards {
+	for _, phaseData := range d.KitchenConfig.PhaseRewards {
 		for _, slug := range phaseData.RewardSlugs {
 			rewardEntry := entities.KitchenPhaseCompletionRewards{
 				PhaseNumber: phaseData.PhaseNumber,
@@ -283,6 +227,18 @@ func (d *BaseGameStageRequest) toEntitiesCommon() (*entities.GameStageConfig, er
 	}
 
 	gameStageConfig.KitchenPhaseReward = kitchenPhaseRewards
+
+	var kitchenStations []entities.KitchenStation
+	for _, kitchenStation := range d.KitchenStations {
+		data := entities.KitchenStation{
+			FoodItemSlug: kitchenStation.FoodItemSlug,
+			AutoUnlock:   kitchenStation.AutoUnlock,
+		}
+
+		kitchenStations = append(kitchenStations, data)
+	}
+
+	gameStageConfig.KitchenStations = kitchenStations
 
 	return &gameStageConfig, nil
 }

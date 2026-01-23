@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/lib/pq"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/database"
@@ -11,12 +12,16 @@ import (
 )
 
 type FoodItemRepository interface {
+	WithTx(tx *sql.Tx) FoodItemRepository
+
 	CreateFoodDB(ctx context.Context, data entities.FoodItem) (id *int64, err error)
 	UpdateFoodDB(ctx context.Context, id int64, data entities.FoodItem) (err error)
 	GetFoodBySlugDB(ctx context.Context, slug string) (*entities.FoodItem, error)
 	GetFoodByIDDB(ctx context.Context, id int64) (*entities.FoodItem, error)
 	GetFoodsDB(ctx context.Context, limit, offset int) ([]entities.FoodItem, error)
 	CountFoodItemDB(ctx context.Context) (count int64, err error)
+
+	GetFoodItemIDsBySlugsDB(ctx context.Context, slugs []string) (map[string]int64, error)
 }
 
 type foodItemRepository struct {
@@ -26,7 +31,21 @@ type foodItemRepository struct {
 func NewFoodItemRepository(db *sql.DB) FoodItemRepository {
 	return &foodItemRepository{
 		BaseRepository{
-			db: db,
+			db:   db,
+			pool: db,
+		},
+	}
+}
+
+func (r *foodItemRepository) WithTx(tx *sql.Tx) FoodItemRepository {
+	if tx == nil {
+		return r
+	}
+
+	return &foodItemRepository{
+		BaseRepository{
+			db:   tx,
+			pool: r.pool,
 		},
 	}
 }
@@ -143,4 +162,25 @@ func (r *foodItemRepository) CountFoodItemDB(ctx context.Context) (count int64, 
 	}
 
 	return count, nil
+}
+
+func (r *foodItemRepository) GetFoodItemIDsBySlugsDB(ctx context.Context, slugs []string) (map[string]int64, error) {
+	query := `SELECT id, slug FROM food_items WHERE slug = ANY($1)`
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(slugs))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	result := make(map[string]int64)
+	for rows.Next() {
+		var id int64
+		var slug string
+		if err := rows.Scan(&id, &slug); err != nil {
+			return nil, err
+		}
+		result[slug] = id
+	}
+	return result, nil
 }

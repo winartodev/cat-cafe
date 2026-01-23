@@ -22,6 +22,8 @@ type gameStageUseCase struct {
 	kitchenConfigRepo  repositories.StageKitchenConfigRepository
 	cameraConfigRepo   repositories.StageCameraConfigRepository
 	rewardRepo         repositories.RewardRepository
+	kitchenStationRepo repositories.KitchenStationRepository
+	foodItemRepo       repositories.FoodItemRepository
 }
 
 func NewGameStageUseCase(
@@ -30,8 +32,9 @@ func NewGameStageUseCase(
 	staffConfigRepo repositories.StageStaffConfigRepository,
 	kitchenConfigRepo repositories.StageKitchenConfigRepository,
 	cameraConfigRepo repositories.StageCameraConfigRepository,
-
 	rewardRepo repositories.RewardRepository,
+	kitchenStationRepo repositories.KitchenStationRepository,
+	foodItemRepo repositories.FoodItemRepository,
 ) GameStageUseCase {
 	return &gameStageUseCase{
 		gameStageRepo:      gameStageRepo,
@@ -40,6 +43,8 @@ func NewGameStageUseCase(
 		kitchenConfigRepo:  kitchenConfigRepo,
 		cameraConfigRepo:   cameraConfigRepo,
 		rewardRepo:         rewardRepo,
+		kitchenStationRepo: kitchenStationRepo,
+		foodItemRepo:       foodItemRepo,
 	}
 }
 
@@ -59,6 +64,8 @@ func (u *gameStageUseCase) CreateGameStage(ctx context.Context, data *entities.G
 		staffRepo := u.staffConfigRepo.WithTx(tx)
 		kitchenConfigRepo := u.kitchenConfigRepo.WithTx(tx)
 		cameraConfigRepo := u.cameraConfigRepo.WithTx(tx)
+		kitchenStationRepo := u.kitchenStationRepo.WithTX(tx)
+		foodItemRepo := u.foodItemRepo.WithTx(tx)
 
 		stageID, err := stageRepo.CreateGameStageWithTxDB(ctx, data)
 		if err != nil {
@@ -73,6 +80,31 @@ func (u *gameStageUseCase) CreateGameStage(ctx context.Context, data *entities.G
 		}
 
 		_, err = staffRepo.CreateStaffConfigWithTxDB(ctx, data.ID, config.StaffConfig)
+		if err != nil {
+			return err
+		}
+
+		var slugs []string
+		for _, ks := range config.KitchenStations {
+			slugs = append(slugs, ks.FoodItemSlug)
+		}
+
+		foodItemMap, err := foodItemRepo.GetFoodItemIDsBySlugsDB(ctx, slugs)
+		if err != nil {
+			return err
+		}
+
+		for i := range config.KitchenStations {
+			id, ok := foodItemMap[config.KitchenStations[i].FoodItemSlug]
+			if !ok {
+				return fmt.Errorf("food item slug %s not found", config.KitchenStations[i].FoodItemSlug)
+			}
+
+			config.KitchenStations[i].FoodItemID = id
+			config.KitchenStations[i].StageID = data.ID
+		}
+
+		_, err = kitchenStationRepo.CreateKitchenStationsWithTxDB(ctx, data.ID, config.KitchenStations)
 		if err != nil {
 			return err
 		}
@@ -117,6 +149,8 @@ func (u *gameStageUseCase) UpdateGameStage(ctx context.Context, data *entities.G
 		staffRepo := u.staffConfigRepo.WithTx(tx)
 		kitchenConfigRepo := u.kitchenConfigRepo.WithTx(tx)
 		cameraConfigRepo := u.cameraConfigRepo.WithTx(tx)
+		kitchenStationRepo := u.kitchenStationRepo.WithTX(tx)
+		foodItemRepo := u.foodItemRepo.WithTx(tx)
 
 		err := stageRepo.UpdateGameStageWithTxDB(ctx, data)
 		if err != nil {
@@ -129,6 +163,35 @@ func (u *gameStageUseCase) UpdateGameStage(ctx context.Context, data *entities.G
 		}
 
 		err = staffRepo.UpdateStaffConfigWithTxDB(ctx, data.ID, config.StaffConfig)
+		if err != nil {
+			return err
+		}
+
+		var slugs []string
+		for _, ks := range config.KitchenStations {
+			slugs = append(slugs, ks.FoodItemSlug)
+		}
+
+		foodItemMap, err := foodItemRepo.GetFoodItemIDsBySlugsDB(ctx, slugs)
+		if err != nil {
+			return err
+		}
+
+		for i := range config.KitchenStations {
+			id, ok := foodItemMap[config.KitchenStations[i].FoodItemSlug]
+			if !ok {
+				return fmt.Errorf("food item slug %s not found", config.KitchenStations[i].FoodItemSlug)
+			}
+			config.KitchenStations[i].FoodItemID = id
+			config.KitchenStations[i].StageID = data.ID
+		}
+
+		err = kitchenStationRepo.DeleteKitchenStationDB(ctx, data.ID)
+		if err != nil {
+			return err
+		}
+
+		_, err = kitchenStationRepo.CreateKitchenStationsWithTxDB(ctx, data.ID, config.KitchenStations)
 		if err != nil {
 			return err
 		}
