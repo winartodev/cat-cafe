@@ -29,6 +29,7 @@ type Repository struct {
 	StageStaffConfigRepository    StageStaffConfigRepository
 	StageKitchenConfigRepository  StageKitchenConfigRepository
 	StageCameraConfigRepository   StageCameraConfigRepository
+	FoodItemRepository            FoodItemRepository
 }
 
 func SetupRepository(db *sql.DB, client *redis.Client) *Repository {
@@ -42,5 +43,6 @@ func SetupRepository(db *sql.DB, client *redis.Client) *Repository {
 		StageStaffConfigRepository:    NewStageStaffConfigRepository(db),
 		StageKitchenConfigRepository:  NewStageKitchenConfigRepository(db),
 		StageCameraConfigRepository:   NewStageCameraConfigRepository(db),
+		FoodItemRepository:            NewFoodItemRepository(db),
 	}
 }

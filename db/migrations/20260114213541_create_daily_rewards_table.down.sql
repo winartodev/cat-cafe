@@ -8,4 +8,6 @@ DROP TABLE IF EXISTS daily_rewards CASCADE;
 
 DROP TABLE IF EXISTS reward_types CASCADE;
 
+DROP TABLE IF EXISTS user_daily_reward_progress CASCADE;
+
 COMMIT;

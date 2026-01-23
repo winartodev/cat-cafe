@@ -27,6 +27,10 @@ func SetupHandler(app *fiber.App, uc usecase.UseCase, middleware middleware.Midd
 		uc.DailyRewardUseCase,
 	)
 
+	foodItemHandler := NewFoodItemHandler(
+		uc.FoodItemUseCase,
+	)
+
 	gameStageHandler := NewGameStageHandler(
 		uc.GameStageUseCase,
 	)
@@ -46,6 +50,7 @@ func SetupHandler(app *fiber.App, uc usecase.UseCase, middleware middleware.Midd
 
 	if err := register(api, userAuth, internalAuth,
 		rewardHandler,
+		foodItemHandler,
 		authHandler,
 		gameHandler,
 		gameStageHandler,

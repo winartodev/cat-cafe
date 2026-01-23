@@ -12,6 +12,7 @@ type UseCase struct {
 	AuthUseCase        AuthUseCase
 	GameUseCase        GameUseCase
 	GameStageUseCase   GameStageUseCase
+	FoodItemUseCase    FoodItemUseCase
 }
 
 func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
@@ -30,6 +31,10 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		repo.UserRepository,
 		userUC,
 		rewardUC,
+	)
+
+	foodItemUC := NewFoodItemUseCase(
+		repo.FoodItemRepository,
 	)
 
 	gameStageUC := NewGameStageUseCase(
@@ -62,5 +67,6 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		AuthUseCase:        authUC,
 		GameUseCase:        gameUC,
 		GameStageUseCase:   gameStageUC,
+		FoodItemUseCase:    foodItemUC,
 	}
 }
