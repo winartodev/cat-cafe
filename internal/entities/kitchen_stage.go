@@ -9,10 +9,10 @@ type KitchenStation struct {
 	AutoUnlock bool  `json:"auto_unlock"`
 
 	// Additional field that didn't store into db
-	FoodItemSlug        string `json:"food_item_slug"`
-	FoodName            string `json:"food_name"`
-	StartingPrice       int64  `json:"starting_price"`
-	StartingPreparation int64  `json:"starting_preparation"`
+	FoodItemSlug        string  `json:"food_item_slug"`
+	FoodName            string  `json:"food_name"`
+	StartingPrice       int64   `json:"starting_price"`
+	StartingPreparation float64 `json:"starting_preparation"`
 
 	FoodItem *FoodItem `json:"food_item,omitempty"`
 }
@@ -42,4 +42,21 @@ type KitchenPhaseCompletionRewards struct {
 	// Additional field that didn't store into db
 	RewardSlug string `json:"reward_slug"`
 	RewardType string `json:"reward_type"`
+}
+
+type PhaseInfo struct {
+	CurrentPhase          int64
+	CurrentPhaseStart     int64
+	CurrentPhaseEnd       int64
+	ProfitMultiplier      float64
+	UpgradeCostMultiplier float64
+	TableCount            int64
+}
+
+type PhaseRewardInfo struct {
+	PhaseNumber int    `json:"phase_number"`
+	RewardType  string `json:"reward_type"`
+	RewardSlug  string `json:"reward_slug"`
+	RewardName  string `json:"reward_name"`
+	Amount      int64  `json:"amount"`
 }

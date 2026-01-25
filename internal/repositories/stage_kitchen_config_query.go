@@ -31,6 +31,19 @@ const (
 		WHERE stage_id = $1
 		RETURNING id;
 	`
+	getStageKitchenConfigQuery = `
+		SELECT 
+		    id,
+		    max_level,
+		   	upgrade_profit_multiply,
+		   	upgrade_cost_multiply,
+		   	transition_phase_levels,
+		   	phase_profit_multipliers,
+		   	phase_upgrade_cost_multipliers,
+		   	table_count_per_phases
+		FROM stage_kitchen_configs
+		WHERE stage_id = $1;
+	`
 
 	insertKitchenPhaseCompletionRewardsQuery = `
 		INSERT INTO kitchen_phase_completion_rewards (
@@ -46,5 +59,14 @@ const (
 	deleteKitchenPhaseCompletionRewardsQuery = `
 		DELETE FROM kitchen_phase_completion_rewards
 		WHERE kitchen_config_id = $1;
+	`
+
+	getKitchenPhaseCompletionRewardsQuery = `
+		SELECT 
+			kitchen_config_id,
+			phase_number,
+			reward_id
+		FROM kitchen_phase_completion_rewards
+		WHERE kitchen_config_id = $1
 	`
 )

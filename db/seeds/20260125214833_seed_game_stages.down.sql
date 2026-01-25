@@ -1,0 +1,6 @@
+BEGIN;
+
+DELETE FROM game_stages
+WHERE slug IN ('STG0001', 'STG0002', 'STG0003');
+
+COMMIT;

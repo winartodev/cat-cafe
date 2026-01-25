@@ -23,6 +23,7 @@ type RewardRepository interface {
 	UpdateRewardDB(ctx context.Context, id int64, data entities.Reward) (err error)
 	GetRewardsDB(ctx context.Context, limit, offset int) (res []entities.Reward, err error)
 	GetRewardBySlugDB(ctx context.Context, slug string) (data *entities.Reward, err error)
+	GetRewardByIDDB(ctx context.Context, id int64) (data *entities.Reward, err error)
 	CountRewardDB(ctx context.Context) (count int64, err error)
 }
 
@@ -163,6 +164,11 @@ func (r *rewardRepository) UpdateRewardDB(ctx context.Context, id int64, data en
 
 func (r *rewardRepository) GetRewardBySlugDB(ctx context.Context, slug string) (data *entities.Reward, err error) {
 	row := r.db.QueryRowContext(ctx, getRewardBySlugQuery, slug)
+	return r.scanRewardRow(row)
+}
+
+func (r *rewardRepository) GetRewardByIDDB(ctx context.Context, id int64) (data *entities.Reward, err error) {
+	row := r.db.QueryRowContext(ctx, getRewardByIDQuery, id)
 	return r.scanRewardRow(row)
 }
 

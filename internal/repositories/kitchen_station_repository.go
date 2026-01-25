@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/helper"
@@ -15,6 +16,7 @@ type KitchenStationRepository interface {
 	CreateKitchenStationsWithTxDB(ctx context.Context, stageID int64, items []entities.KitchenStation) ([]int64, error)
 	GetKitchenStationsDB(ctx context.Context, stageID int64) (res []entities.KitchenStation, err error)
 	DeleteKitchenStationDB(ctx context.Context, stageID int64) error
+	GetKitchenStationByFoodIDDB(ctx context.Context, stageID int64, foodItemID int64) (res *entities.KitchenStation, err error)
 }
 
 type kitchenStationRepository struct {
@@ -130,4 +132,33 @@ func (r *kitchenStationRepository) DeleteKitchenStationDB(ctx context.Context, s
 	}
 
 	return nil
+}
+
+func (r *kitchenStationRepository) GetKitchenStationByFoodIDDB(ctx context.Context, stageID int64, foodItemID int64) (res *entities.KitchenStation, err error) {
+	var kitchenStation entities.KitchenStation
+	var foodItem entities.FoodItem
+
+	err = r.db.QueryRowContext(
+		ctx,
+		getKitchenStationByFoodIDDB,
+		stageID,
+		foodItemID,
+	).Scan(
+		&kitchenStation.StageID,
+		&kitchenStation.FoodItemID,
+		&kitchenStation.AutoUnlock,
+		&foodItem.Slug,
+		&foodItem.Name,
+		&foodItem.StartingPrice,
+		&foodItem.StartingPreparation,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	kitchenStation.FoodItem = &foodItem
+
+	return &kitchenStation, nil
 }

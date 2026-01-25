@@ -64,6 +64,20 @@ const (
 		WHERE r.slug = $1
 	`
 
+	getRewardByIDQuery = `
+		SELECT 
+		    r.id, 
+		    r.slug, 
+		    r.name,
+		    r.amount,
+		    r.is_active,
+		    rt.slug reward_type_slug,
+		    rt.name reward_type_name
+		FROM rewards AS r 
+			JOIN reward_types AS rt ON r.reward_type_id = rt.id 
+		WHERE r.id = $1
+	`
+
 	countRewardsQuery = `
 		SELECT COUNT(*) 
 		FROM rewards

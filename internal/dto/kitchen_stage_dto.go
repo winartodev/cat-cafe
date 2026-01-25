@@ -14,11 +14,11 @@ type KitchenConfigRequest struct {
 }
 
 type KitchenStationDTO struct {
-	FoodItemSlug        string `json:"food_item_slug"`
-	FoodName            string `json:"food_name"`
-	AutoUnlock          bool   `json:"auto_unlock"`
-	StartingPrice       int64  `json:"starting_price"`
-	StartingPreparation int64  `json:"starting_preparation"`
+	FoodItemSlug        string  `json:"food_item_slug"`
+	FoodName            string  `json:"food_name"`
+	AutoUnlock          bool    `json:"auto_unlock"`
+	StartingPrice       int64   `json:"starting_price"`
+	StartingPreparation float64 `json:"starting_preparation"`
 }
 
 type KitchenConfigDTO struct {
@@ -30,8 +30,7 @@ type KitchenConfigDTO struct {
 	PhaseUpgradeCostMultipliers []float64 `json:"phase_upgrade_cost_multipliers"`
 	TableCountPerPhases         []int64   `json:"table_count_per_phases"`
 
-	PhaseRewards []KitchenPhaseCompletionRewardDTO `json:"phase_rewards,omitempt
-y"`
+	PhaseRewards []KitchenPhaseCompletionRewardDTO `json:"phase_rewards,omitempty"`
 }
 
 type KitchenPhaseCompletionRewardDTO struct {

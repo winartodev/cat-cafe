@@ -23,7 +23,7 @@ type GameStageRepository interface {
 	GetGameStageByIDDB(ctx context.Context, id int64) (*entities.GameStage, error)
 	GetGameStageBySlugDB(ctx context.Context, slug string) (*entities.GameStage, error)
 
-	GetGameConfigByIDDB(ctx context.Context, id int64) (*entities.GameStageConfig, error)
+	GetGameConfigByIDDB(ctx context.Context, stageID int64) (*entities.GameStageConfig, error)
 
 	GetActiveGameStagesDB(ctx context.Context) ([]entities.GameStage, error)
 }
@@ -153,8 +153,8 @@ func (r *gameStageRepository) GetGameStagesDB(ctx context.Context, limit, offset
 	return res, totalRows, nil
 }
 
-func (r *gameStageRepository) GetGameConfigByIDDB(ctx context.Context, id int64) (*entities.GameStageConfig, error) {
-	row := r.db.QueryRowContext(ctx, getGameStageConfig, id)
+func (r *gameStageRepository) GetGameConfigByIDDB(ctx context.Context, stageID int64) (*entities.GameStageConfig, error) {
+	row := r.db.QueryRowContext(ctx, getGameStageConfig, stageID)
 	return r.scanGameStageConfigRow(row)
 }
 
@@ -194,6 +194,7 @@ func (r *gameStageRepository) scanGameStageConfigRow(row *sql.Row) (*entities.Ga
 		&scc.StartingOrderTableCount,
 		&ssc.StartingStaffManager,
 		&ssc.StartingStaffHelper,
+		&skc.ID,
 		&skc.MaxLevel,
 		&skc.UpgradeProfitMultiply,
 		&skc.UpgradeCostMultiply,

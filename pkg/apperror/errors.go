@@ -51,4 +51,7 @@ var (
 
 	ErrStageNotUnlocked      = errors.New("stage is locked")
 	ErrStageAlreadyCompleted = errors.New("stage already completed")
+	ErrUserNotStartedGame    = errors.New("user not started game")
+	ErrMaxLevelReached       = errors.New("max level reached")
+	ErrInsufficientCoins     = errors.New("insufficient coins")
 )

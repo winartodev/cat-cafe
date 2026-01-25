@@ -6,19 +6,24 @@ import (
 )
 
 type UseCase struct {
-	UserUseCase        UserUseCase
-	RewardUseCase      RewardUseCase
-	DailyRewardUseCase DailyRewardUseCase
-	AuthUseCase        AuthUseCase
-	GameUseCase        GameUseCase
-	GameStageUseCase   GameStageUseCase
-	FoodItemUseCase    FoodItemUseCase
+	UserUseCase            UserUseCase
+	UserProgressionUseCase UserProgressionUseCase
+	RewardUseCase          RewardUseCase
+	DailyRewardUseCase     DailyRewardUseCase
+	AuthUseCase            AuthUseCase
+	GameUseCase            GameUseCase
+	GameStageUseCase       GameStageUseCase
+	FoodItemUseCase        FoodItemUseCase
 }
 
 func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
+	userProgressionUC := NewUserProgressionUseCase(
+		repo.UserProgressionRepository,
+	)
+
 	userUC := NewUserUseCase(
 		repo.UserRepository,
-		repo.UserProgressionRepository,
+		userProgressionUC,
 	)
 
 	rewardUC := NewRewardUseCase(
@@ -50,9 +55,14 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 
 	gameUC := NewGameUseCase(
 		userUC,
+		userProgressionUC,
 		repo.UserRepository,
 		repo.UserProgressionRepository,
 		repo.GameStageRepository,
+		repo.FoodItemRepository,
+		repo.KitchenStationRepository,
+		repo.StageKitchenConfigRepository,
+		repo.RewardRepository,
 	)
 
 	authUC := NewAuthUseCase(
@@ -63,12 +73,13 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 	)
 
 	return &UseCase{
-		UserUseCase:        userUC,
-		RewardUseCase:      rewardUC,
-		DailyRewardUseCase: dailyRewardUC,
-		AuthUseCase:        authUC,
-		GameUseCase:        gameUC,
-		GameStageUseCase:   gameStageUC,
-		FoodItemUseCase:    foodItemUC,
+		UserUseCase:            userUC,
+		UserProgressionUseCase: userProgressionUC,
+		RewardUseCase:          rewardUC,
+		DailyRewardUseCase:     dailyRewardUC,
+		AuthUseCase:            authUC,
+		GameUseCase:            gameUC,
+		GameStageUseCase:       gameStageUC,
+		FoodItemUseCase:        foodItemUC,
 	}
 }

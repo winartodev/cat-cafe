@@ -55,6 +55,10 @@ func (m *middleware) WithUserAuth() fiber.Handler {
 		}
 
 		userCache, err := m.userRepository.GetUserByIDDB(ctx, claims.UserID)
+		if userCache == nil {
+			return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrInvalidToken)
+		}
+
 		if err == nil {
 			c.Locals(helper.ContextUserKey, userCache)
 			c.Locals(helper.ContextUserIDKey, userCache.ID)

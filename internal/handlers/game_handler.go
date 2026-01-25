@@ -116,6 +116,22 @@ func (h *GameHandler) CompleteGameStage(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Started", nil, nil)
 }
 
+func (h *GameHandler) UpgradeKitchenStation(c *fiber.Ctx) error {
+	slug, err := helper.GetParam[string](c, "slug")
+	if err != nil {
+		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+	}
+
+	userID := helper.GetUserID(c)
+
+	res, err := h.GameUseCase.UpgradeKitchenStation(c.Context(), userID, slug)
+	if err != nil {
+		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Upgraded", res, nil)
+}
+
 func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
 	game := userAuth.Group("/game")
 
@@ -126,6 +142,9 @@ func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAu
 	game.Get("/stages", h.GetCurrentStage)
 	game.Post("/stages/:slug/start", h.StartGameStage)
 	game.Post("/stages/:slug/complete", h.CompleteGameStage)
+
+	// Player Kitchen Station
+	game.Post("/stations/:slug/upgrade", h.UpgradeKitchenStation)
 
 	// Player daily reward interactions
 	game.Get("/daily-reward/status", h.GetDailyRewardStatus)

@@ -20,12 +20,12 @@ type UserUseCase interface {
 
 type userUseCase struct {
 	userRepo        repositories.UserRepository
-	userProgression repositories.UserProgressionRepository
+	userProgression UserProgressionUseCase
 }
 
 func NewUserUseCase(
 	userRepo repositories.UserRepository,
-	userProgression repositories.UserProgressionRepository,
+	userProgression UserProgressionUseCase,
 ) UserUseCase {
 	return &userUseCase{
 		userRepo:        userRepo,
@@ -81,7 +81,7 @@ func (c *userUseCase) GetUserDailyRewardByID(ctx context.Context, userID int64) 
 		return nil, err
 	}
 
-	progress, err := c.userProgression.GetUserDailyRewardByIDDB(ctx, user.ID)
+	progress, err := c.userProgression.DailyRewardProgression(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}

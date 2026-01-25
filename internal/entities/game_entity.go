@@ -25,3 +25,30 @@ type UserNextGameStageInfo struct {
 	Name   string          `json:"name"`
 	Status GameStageStatus `json:"status"`
 }
+
+type UpgradeKitchenStation struct {
+	Success        bool  `json:"success"`
+	NewLevel       int64 `json:"new_level"`
+	IsMaxLevel     bool  `json:"is_max_level"`
+	NewCoinBalance int64 `json:"new_coin_balance"`
+	CoinsSpent     int64 `json:"coins_spent"`
+
+	// Current values
+	CurrentProfit   int64   `json:"current_profit"`
+	CurrentPrepTime float64 `json:"current_prep_time"`
+	ProfitPerSecond float64 `json:"profit_per_second"`
+
+	// Phase info
+	PhaseTransitioned      bool    `json:"phase_transitioned"`
+	CurrentPhase           int64   `json:"current_phase"`
+	CurrentPhaseStartLevel int64   `json:"current_phase_start_level"`
+	CurrentPhaseLastLevel  int64   `json:"current_phase_last_level"`
+	PhaseProfitMultiplier  float64 `json:"phase_profit_multiplier"`
+
+	// Table count
+	NewTableCount int64 `json:"new_table_count,omitempty"`
+
+	// Rewards
+	PhaseRewards    []PhaseRewardInfo `json:"phase_rewards,omitempty"`
+	AllPhaseRewards []PhaseRewardInfo `json:"all_phase_rewards,omitempty"`
+}

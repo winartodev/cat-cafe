@@ -201,7 +201,7 @@ func (u *gameStageUseCase) UpdateGameStage(ctx context.Context, data *entities.G
 			return err
 		}
 
-		err = kitchenConfigRepo.DeleteKitchenCompletionReward(ctx, *kitchenConfigID)
+		err = kitchenConfigRepo.DeleteKitchenCompletionRewardDB(ctx, *kitchenConfigID)
 		if err != nil {
 			return err
 		}
@@ -270,7 +270,7 @@ func (u *gameStageUseCase) createKitchenCompleteReward(ctx context.Context, tx *
 		}
 
 		phaseReward.RewardID = reward.ID
-		_, err = kitchenConfigRepo.CreateKitchenCompletionReward(ctx, kitchenConfigID, &phaseReward)
+		_, err = kitchenConfigRepo.CreateKitchenCompletionRewardDB(ctx, kitchenConfigID, &phaseReward)
 		if err != nil {
 			return err
 		}

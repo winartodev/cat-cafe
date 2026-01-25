@@ -14,9 +14,11 @@ type StageKitchenConfigRepository interface {
 	WithTx(tx *sql.Tx) StageKitchenConfigRepository
 	CreateKitchenConfigWithTxDB(ctx context.Context, stageID int64, data *entities.StageKitchenConfig) (id *int64, err error)
 	UpdateKitchenConfigWithTxDB(ctx context.Context, stageID int64, data *entities.StageKitchenConfig) (id *int64, err error)
+	GetKitchenConfigByStageIDDB(ctx context.Context, stageID int64) (res *entities.StageKitchenConfig, err error)
 
-	CreateKitchenCompletionReward(ctx context.Context, kitchenConfigID int64, data *entities.KitchenPhaseCompletionRewards) (id *int64, err error)
-	DeleteKitchenCompletionReward(ctx context.Context, kitchenConfigID int64) error
+	GetKitchenCompletionRewardsDB(ctx context.Context, kitchenConfigID int64) (data []entities.KitchenPhaseCompletionRewards, err error)
+	CreateKitchenCompletionRewardDB(ctx context.Context, kitchenConfigID int64, data *entities.KitchenPhaseCompletionRewards) (id *int64, err error)
+	DeleteKitchenCompletionRewardDB(ctx context.Context, kitchenConfigID int64) error
 }
 
 type stageKitchenConfigRepository struct {
@@ -92,7 +94,26 @@ func (r *stageKitchenConfigRepository) UpdateKitchenConfigWithTxDB(ctx context.C
 	return &id, nil
 }
 
-func (r *stageKitchenConfigRepository) CreateKitchenCompletionReward(ctx context.Context, kitchenConfigID int64, data *entities.KitchenPhaseCompletionRewards) (*int64, error) {
+func (r *stageKitchenConfigRepository) GetKitchenConfigByStageIDDB(ctx context.Context, stageID int64) (res *entities.StageKitchenConfig, err error) {
+	var data entities.StageKitchenConfig
+	err = r.db.QueryRowContext(ctx, getStageKitchenConfigQuery, stageID).Scan(
+		&data.ID,
+		&data.MaxLevel,
+		&data.UpgradeProfitMultiply,
+		&data.UpgradeCostMultiply,
+		pq.Array(&data.TransitionPhaseLevels),
+		pq.Array(&data.PhaseProfitMultipliers),
+		pq.Array(&data.PhaseUpgradeCostMultipliers),
+		pq.Array(&data.TableCountPerPhases),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+func (r *stageKitchenConfigRepository) CreateKitchenCompletionRewardDB(ctx context.Context, kitchenConfigID int64, data *entities.KitchenPhaseCompletionRewards) (*int64, error) {
 	var id int64
 	now := helper.NowUTC()
 	err := r.db.QueryRowContext(ctx,
@@ -112,11 +133,34 @@ func (r *stageKitchenConfigRepository) CreateKitchenCompletionReward(ctx context
 	return &id, nil
 }
 
-func (r *stageKitchenConfigRepository) DeleteKitchenCompletionReward(ctx context.Context, kitchenConfigID int64) error {
+func (r *stageKitchenConfigRepository) DeleteKitchenCompletionRewardDB(ctx context.Context, kitchenConfigID int64) error {
 	_, err := r.db.ExecContext(ctx, deleteKitchenPhaseCompletionRewardsQuery, kitchenConfigID)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (r *stageKitchenConfigRepository) GetKitchenCompletionRewardsDB(ctx context.Context, kitchenConfigID int64) (res []entities.KitchenPhaseCompletionRewards, err error) {
+	rows, err := r.db.QueryContext(ctx, getKitchenPhaseCompletionRewardsQuery, kitchenConfigID)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var data entities.KitchenPhaseCompletionRewards
+		err = rows.Scan(
+			&data.KitchenConfigID,
+			&data.PhaseNumber,
+			&data.RewardID,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		res = append(res, data)
+	}
+
+	return res, nil
 }

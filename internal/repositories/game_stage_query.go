@@ -74,26 +74,27 @@ const (
 	`
 
 	getGameStageConfig = `
-		SELECT COALESCE(scc.customer_spawn_time, 0)               AS customer_spawn_time,
-			   COALESCE(scc.max_customer_order_count, 0)          AS max_customer_order_count,
-			   COALESCE(scc.max_customer_order_variant, 0)        AS max_customer_order_variant,
-			   COALESCE(scc.starting_order_table_count, 0)        AS starting_order_table_count,
-			   COALESCE(ssc.starting_staff_manager, '')           AS starting_staff_manager,
-			   COALESCE(ssc.starting_staff_helper, '')            AS starting_staff_helper,
-			   COALESCE(skc.max_level, 0)                         AS max_level,
-			   COALESCE(skc.upgrade_profit_multiply, 0)           AS upgrade_profit_multiply,
-			   COALESCE(skc.upgrade_cost_multiply, 0)             AS upgrade_cost_multiply,
-			   COALESCE(skc.transition_phase_levels, '{}')        AS transition_phase_levels,
-			   COALESCE(skc.phase_profit_multipliers, '{}')       AS phase_profit_multipliers,
-			   COALESCE(skc.phase_upgrade_cost_multipliers, '{}') AS phase_upgrade_cost_multipliers,
-			   COALESCE(skc.table_count_per_phases, '{}')         AS table_count_per_phases,
-			   COALESCE(rewards_agg.data, '[]')                   AS phase_rewards,
-			   COALESCE(stations_agg.data, '[]')                  AS kitchen_stations,
-			   COALESCE(scc2.zoom_size, 0.0)                      AS zoom_size,
-			   COALESCE(scc2.max_bound_x, 0.0)                    AS max_bound_x,
-			   COALESCE(scc2.min_bound_x, 0.0)                    AS min_bound_x,
-			   COALESCE(scc2.min_bound_y, 0.0)                    AS min_bound_y,
-			   COALESCE(scc2.max_bound_y, 0.0)                    AS max_bound_y
+		SELECT COALESCE(scc.customer_spawn_time, 0)               	AS customer_spawn_time,
+			   COALESCE(scc.max_customer_order_count, 0)          	AS max_customer_order_count,
+			   COALESCE(scc.max_customer_order_variant, 0)        	AS max_customer_order_variant,
+			   COALESCE(scc.starting_order_table_count, 0)        	AS starting_order_table_count,
+			   COALESCE(ssc.starting_staff_manager, '')           	AS starting_staff_manager,
+			   COALESCE(ssc.starting_staff_helper, '')            	AS starting_staff_helper,
+			   COALESCE(skc.id, 0) 									AS kitchen_config_id,
+			   COALESCE(skc.max_level, 0)                         	AS max_level,
+			   COALESCE(skc.upgrade_profit_multiply, 0)           	AS upgrade_profit_multiply,
+			   COALESCE(skc.upgrade_cost_multiply, 0)             	AS upgrade_cost_multiply,
+			   COALESCE(skc.transition_phase_levels, '{}')        	AS transition_phase_levels,
+			   COALESCE(skc.phase_profit_multipliers, '{}')       	AS phase_profit_multipliers,
+			   COALESCE(skc.phase_upgrade_cost_multipliers, '{}') 	AS phase_upgrade_cost_multipliers,
+			   COALESCE(skc.table_count_per_phases, '{}')         	AS table_count_per_phases,
+			   COALESCE(rewards_agg.data, '[]')                   	AS phase_rewards,
+			   COALESCE(stations_agg.data, '[]')                  	AS kitchen_stations,
+			   COALESCE(scc2.zoom_size, 0.0)                      	AS zoom_size,
+			   COALESCE(scc2.max_bound_x, 0.0)                    	AS max_bound_x,
+			   COALESCE(scc2.min_bound_x, 0.0)                    	AS min_bound_x,
+			   COALESCE(scc2.min_bound_y, 0.0)                    	AS min_bound_y,
+			   COALESCE(scc2.max_bound_y, 0.0)                    	AS max_bound_y
 		FROM game_stages gs
 				 LEFT JOIN stage_customer_configs scc ON scc.stage_id = gs.id
 				 LEFT JOIN stage_staff_configs ssc ON ssc.stage_id = gs.id
@@ -113,7 +114,8 @@ const (
 			) rewards_agg ON TRUE
 				 LEFT JOIN LATERAL (
 			SELECT json_agg(json_build_object(
-					'item_name_slug', fi.slug,
+					'food_item_slug', fi.slug,
+					'food_name', fi.name,
 					'starting_price', fi.starting_price,
 					'starting_preparation', fi.starting_preparation,
 					'auto_unlock', ks.auto_unlock
