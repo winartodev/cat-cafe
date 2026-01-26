@@ -5,13 +5,14 @@ const (
 		INSERT INTO game_stages (
 		    slug,
 			name,
+			description,
 			starting_coin,
 			stage_prize,
 			is_active,
 			sequence,
 			created_at,
 			updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
 		RETURNING id;
 	`
 
@@ -23,7 +24,8 @@ const (
 			stage_prize = $4,
 			updated_at = $5,
 			is_active = $6,
-			sequence = $7
+			sequence = $7,
+			description = $8
 		WHERE id = $1;
 	`
 
@@ -32,6 +34,7 @@ const (
 		    id,
 			slug,
 			name,
+			description,
 			starting_coin,
 			stage_prize,
 			is_active,
@@ -45,6 +48,7 @@ const (
 		    id,
 			slug,
 			name,
+			description,
 			starting_coin,
 			stage_prize,
 			is_active,
@@ -58,6 +62,7 @@ const (
 			id,
 			slug,
 			name,
+			description,
 			starting_coin,
 			stage_prize,
 			is_active,
@@ -132,6 +137,7 @@ const (
 		    id,
 			slug,
 			name,
+			description,
 			sequence
 		FROM game_stages
 		WHERE is_active = true

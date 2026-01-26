@@ -76,6 +76,7 @@ func (r *gameStageRepository) CreateGameStageWithTxDB(ctx context.Context, data 
 	err := r.db.QueryRowContext(ctx, insertIntoGameStageQuery,
 		data.Slug,
 		data.Name,
+		data.Description,
 		data.StartingCoin,
 		data.StagePrize,
 		data.IsActive,
@@ -103,6 +104,7 @@ func (r *gameStageRepository) UpdateGameStageWithTxDB(ctx context.Context, data 
 		now,
 		data.IsActive,
 		data.Sequence,
+		data.Description,
 	)
 	if err != nil {
 		return err
@@ -133,6 +135,7 @@ func (r *gameStageRepository) GetGameStagesDB(ctx context.Context, limit, offset
 			&gameStage.ID,
 			&gameStage.Slug,
 			&gameStage.Name,
+			&gameStage.Description,
 			&gameStage.StartingCoin,
 			&gameStage.StagePrize,
 			&gameStage.IsActive,
@@ -164,6 +167,7 @@ func (r *gameStageRepository) scanGameStageRow(row *sql.Row) (*entities.GameStag
 		&gameStage.ID,
 		&gameStage.Slug,
 		&gameStage.Name,
+		&gameStage.Description,
 		&gameStage.StartingCoin,
 		&gameStage.StagePrize,
 		&gameStage.IsActive,
@@ -248,6 +252,7 @@ func (r *gameStageRepository) GetActiveGameStagesDB(ctx context.Context) (res []
 			&gameStage.ID,
 			&gameStage.Slug,
 			&gameStage.Name,
+			&gameStage.Description,
 			&gameStage.Sequence,
 		)
 

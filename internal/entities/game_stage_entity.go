@@ -6,6 +6,7 @@ type GameStage struct {
 	ID           int64     `json:"id"`
 	Slug         string    `json:"slug"`
 	Name         string    `json:"name"`
+	Description  string    `json:"string"`
 	StartingCoin int64     `json:"starting_coin"`
 	StagePrize   int64     `json:"stage_prize"`
 	IsActive     bool      `json:"is_active"`

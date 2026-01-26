@@ -1,11 +1,11 @@
 BEGIN;
 
 -- Insert Game Stages
-INSERT INTO game_stages (slug, name, starting_coin, stage_prize, is_active, sequence)
+INSERT INTO game_stages (slug, name, description, starting_coin, stage_prize, is_active, sequence)
 VALUES
-    ('STG0001', 'DIMSUM CART', 0, 1500, true, 1),
-    ('STG0002', 'BOBA STALL', 10, 250000, true, 2),
-    ('STG0003', 'DESERT CAFE', 20, 1500000, true, 3);
+    ('STG0001', 'DIMSUM CART', 'Dimsum pop-up stall, popular among college students.',0, 1500, true, 1),
+    ('STG0002', 'BOBA STALL','Famous Boba stall in a busy shopping centre.,', 10, 250000, true, 2),
+    ('STG0003', 'DESERT CAFE', 'A hit cafe in BlokM, selling new innovative food and popular among the youth.', 20, 1500000, true, 3);
 
 -- Insert Customer Configs
 INSERT INTO stage_customer_configs (stage_id, customer_spawn_time, max_customer_order_count, max_customer_order_variant, starting_order_table_count)

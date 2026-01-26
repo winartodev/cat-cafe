@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS game_stages (
     id BIGSERIAL PRIMARY KEY,
     slug VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
+    description TEXT DEFAULT '' NOT NULL,
     starting_coin BIGINT DEFAULT 0 NOT NULL,
     stage_prize BIGINT DEFAULT 0 NOT NULL,
     is_active BOOL DEFAULT true NOT NULL,

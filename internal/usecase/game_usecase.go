@@ -182,9 +182,10 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 
 	for i, stage := range stages {
 		currentStage := entities.UserGameStage{
-			Slug:     stage.Slug,
-			Name:     stage.Name,
-			Sequence: stage.Sequence,
+			Slug:        stage.Slug,
+			Name:        stage.Name,
+			Description: stage.Description,
+			Sequence:    stage.Sequence,
 		}
 
 		// User hasn't started any stage yet

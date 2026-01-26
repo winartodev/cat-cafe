@@ -16,10 +16,11 @@ type SyncBalanceResponse struct {
 }
 
 type UserGameStage struct {
-	Slug     string                   `json:"slug"`
-	Name     string                   `json:"name"`
-	Sequence int64                    `json:"sequence"`
-	Status   entities.GameStageStatus `json:"status"`
+	Slug        string                   `json:"slug"`
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
+	Sequence    int64                    `json:"sequence"`
+	Status      entities.GameStageStatus `json:"status"`
 }
 
 type UserGameStageResponse struct {
@@ -30,6 +31,7 @@ type UserGameStageResponse struct {
 type UserDetailGameStageResponse struct {
 	Slug         string `json:"slug"`
 	Name         string `json:"name"`
+	Description  string `json:"string"`
 	StartingCoin int64  `json:"starting_coin"`
 	StagePrize   int64  `json:"stage_prize"`
 	IsActive     bool   `json:"is_active"`
@@ -46,10 +48,11 @@ type UserDetailGameStageResponse struct {
 
 func ToUserGameStageResponse(data *entities.UserGameStage) *UserGameStage {
 	return &UserGameStage{
-		Slug:     data.Slug,
-		Name:     data.Name,
-		Sequence: data.Sequence,
-		Status:   data.Status,
+		Slug:        data.Slug,
+		Name:        data.Name,
+		Sequence:    data.Sequence,
+		Status:      data.Status,
+		Description: data.Description,
 	}
 }
 
@@ -79,6 +82,7 @@ func ToUserDetailGameStageResponse(
 		Name:            data.Name,
 		StartingCoin:    data.StartingCoin,
 		StagePrize:      data.StagePrize,
+		Description:     data.Description,
 		IsActive:        data.IsActive,
 		Sequence:        data.Sequence,
 		Customer:        toCustomerConfigDTO(config.CustomerConfig),

@@ -7,6 +7,7 @@ import (
 
 type BaseGameStageRequest struct {
 	Name         string `json:"name"`
+	Description  string `json:"description"`
 	StartingCoin int64  `json:"starting_coin"`
 	StagePrize   int64  `json:"stage_prize"`
 	IsActive     bool   `json:"is_active"`
@@ -41,6 +42,7 @@ type GameStageDetailResponse struct {
 	ID           int64  `json:"id"`
 	Slug         string `json:"slug"`
 	Name         string `json:"name"`
+	Description  string `json:"description"`
 	StartingCoin int64  `json:"starting_coin"`
 	StagePrize   int64  `json:"stage_prize"`
 	IsActive     bool   `json:"is_active"`
@@ -57,6 +59,7 @@ type GameStageResponse struct {
 	ID           int64  `json:"id"`
 	Slug         string `json:"slug"`
 	Name         string `json:"name"`
+	Description  string `json:"description"`
 	StartingCoin int64  `json:"starting_coin"`
 	StagePrize   int64  `json:"stage_prize"`
 	IsActive     bool   `json:"is_active"`
@@ -138,6 +141,7 @@ func ToGameStageResponse(data entities.GameStage) GameStageResponse {
 		ID:           data.ID,
 		Slug:         data.Slug,
 		Name:         data.Name,
+		Description:  data.Description,
 		StartingCoin: data.StartingCoin,
 		StagePrize:   data.StagePrize,
 		IsActive:     data.IsActive,
@@ -154,6 +158,7 @@ func ToGameStageDetailResponse(data *entities.GameStage, gameConfig *entities.Ga
 		ID:             data.ID,
 		Slug:           data.Slug,
 		Name:           data.Name,
+		Description:    data.Description,
 		StartingCoin:   data.StartingCoin,
 		StagePrize:     data.StagePrize,
 		IsActive:       data.IsActive,
@@ -256,6 +261,7 @@ func (d *CreateGameStageRequest) ToEntities() (
 	gameStage := &entities.GameStage{
 		Slug:         d.Slug,
 		Name:         d.Name,
+		Description:  d.Description,
 		StartingCoin: d.StartingCoin,
 		StagePrize:   d.StagePrize,
 		IsActive:     d.IsActive,
@@ -278,6 +284,7 @@ func (d *UpdateGameStageRequest) ToEntities(id int64) (
 	gameStage := &entities.GameStage{
 		ID:           id,
 		Name:         d.Name,
+		Description:  d.Description,
 		StartingCoin: d.StartingCoin,
 		StagePrize:   d.StagePrize,
 		IsActive:     d.IsActive,
