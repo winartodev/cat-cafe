@@ -15,30 +15,32 @@ import (
 type GameHandler struct {
 	GameUseCase        usecase.GameUseCase
 	DailyRewardUseCase usecase.DailyRewardUseCase
+	errorHandler       *apperror.ErrorHandler
 }
 
 func NewGameHandler(gameUc usecase.GameUseCase, dailyRewardUc usecase.DailyRewardUseCase) *GameHandler {
 	return &GameHandler{
 		GameUseCase:        gameUc,
 		DailyRewardUseCase: dailyRewardUc,
+		errorHandler:       apperror.NewErrorHandler(),
 	}
 }
 
 func (h *GameHandler) SyncBalance(c *fiber.Ctx) error {
 	var req dto.SyncBalanceRequest
 	if err := c.BodyParser(&req); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 	ctx := c.Context()
 
 	userID, _ := helper.GetUserIDFromContext(ctx)
 	if userID <= 0 {
-		return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrUnauthorized)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrUnauthorized)
 	}
 
 	res, err := h.GameUseCase.UpdateUserBalance(ctx, req.CoinsEarned, userID)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Sync Balance Successfully", res, nil)
@@ -51,10 +53,10 @@ func (h *GameHandler) GetDailyRewardStatus(c *fiber.Ctx) error {
 	rewards, dailyRewardIdx, isNewDay, err := h.DailyRewardUseCase.GetDailyRewardStatus(ctx)
 	if err != nil {
 		if errors.Is(err, apperror.ErrRecordNotFound) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Status Successfully Retrieved", dto.ToDailyRewardStatus(rewards, dailyRewardIdx, isNewDay), nil)
@@ -66,7 +68,7 @@ func (h *GameHandler) ClaimReward(c *fiber.Ctx) error {
 
 	reward, newBalance, err := h.DailyRewardUseCase.ClaimDailyReward(ctx)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Claimed Successfully", dto.ToClaimDailyRewardResponse(reward, newBalance), nil)
@@ -78,7 +80,7 @@ func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
 
 	stages, _, err := h.GameUseCase.GetGameStages(ctx, userID)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Current Stage Successfully Retrieved", dto.ToUserGameStageResponses(stages), nil)
@@ -87,14 +89,14 @@ func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
 func (h *GameHandler) StartGameStage(c *fiber.Ctx) error {
 	slug, err := helper.GetParam[string](c, "slug")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
 	}
 
 	userID := helper.GetUserID(c)
 
 	gameStage, config, nextStage, err := h.GameUseCase.StartGameStage(c.Context(), userID, slug)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Started", dto.ToUserDetailGameStageResponse(gameStage, config, nextStage), nil)
@@ -103,14 +105,14 @@ func (h *GameHandler) StartGameStage(c *fiber.Ctx) error {
 func (h *GameHandler) CompleteGameStage(c *fiber.Ctx) error {
 	slug, err := helper.GetParam[string](c, "slug")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
 	}
 
 	userID := helper.GetUserID(c)
 
 	err = h.GameUseCase.CompleteGameStage(c.Context(), userID, slug)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Started", nil, nil)
@@ -119,14 +121,14 @@ func (h *GameHandler) CompleteGameStage(c *fiber.Ctx) error {
 func (h *GameHandler) UpgradeKitchenStation(c *fiber.Ctx) error {
 	slug, err := helper.GetParam[string](c, "slug")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
 	}
 
 	userID := helper.GetUserID(c)
 
 	res, err := h.GameUseCase.UpgradeKitchenStation(c.Context(), userID, slug)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Upgraded", res, nil)
@@ -135,14 +137,14 @@ func (h *GameHandler) UpgradeKitchenStation(c *fiber.Ctx) error {
 func (h *GameHandler) PurchaseKitchenStation(c *fiber.Ctx) error {
 	slug, err := helper.GetParam[string](c, "slug")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
 	}
 
 	userID := helper.GetUserID(c)
 
 	res, err := h.GameUseCase.UnlockKitchenStation(c.Context(), userID, slug)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Purchased", res, nil)

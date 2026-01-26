@@ -18,12 +18,14 @@ type Middleware interface {
 type middleware struct {
 	jwtManager     *jwt.JWT
 	userRepository repositories.UserRepository
+	errorHandler   *apperror.ErrorHandler
 }
 
 func NewMiddleware(jwtManager *jwt.JWT, userRepository repositories.UserRepository) Middleware {
 	return &middleware{
 		jwtManager:     jwtManager,
 		userRepository: userRepository,
+		errorHandler:   apperror.NewErrorHandler(),
 	}
 }
 
@@ -32,31 +34,31 @@ func (m *middleware) WithUserAuth() fiber.Handler {
 		ctx := c.Context()
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrMissingAuthHeader)
+			return response.FailedResponse(c, m.errorHandler, apperror.ErrMissingAuthHeader)
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
-			return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrInvalidToken)
+			return response.FailedResponse(c, m.errorHandler, apperror.ErrInvalidToken)
 		}
 
 		// Check blacklist
 		if m.userRepository.IsTokenBlacklisted(ctx, tokenString) {
-			return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrTokenRevoked)
+			return response.FailedResponse(c, m.errorHandler, apperror.ErrTokenRevoked)
 		}
 
 		// Validate token
 		claims, err := m.jwtManager.ValidateToken(tokenString)
 		if err != nil {
 			if errors.Is(err, apperror.ErrTokenExpired) {
-				return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrTokenExpired)
+				return response.FailedResponse(c, m.errorHandler, apperror.ErrTokenExpired)
 			}
-			return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrInvalidToken)
+			return response.FailedResponse(c, m.errorHandler, apperror.ErrInvalidToken)
 		}
 
 		userCache, err := m.userRepository.GetUserByIDDB(ctx, claims.UserID)
 		if userCache == nil {
-			return response.FailedResponse(c, fiber.StatusUnauthorized, apperror.ErrInvalidToken)
+			return response.FailedResponse(c, m.errorHandler, apperror.ErrInvalidToken)
 		}
 
 		if err == nil {

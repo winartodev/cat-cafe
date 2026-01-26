@@ -12,27 +12,29 @@ import (
 
 type FoodItemHandler struct {
 	foodItemUseCase usecase.FoodItemUseCase
+	errorHandler    *apperror.ErrorHandler
 }
 
 func NewFoodItemHandler(foodItemUC usecase.FoodItemUseCase) *FoodItemHandler {
 	return &FoodItemHandler{
 		foodItemUseCase: foodItemUC,
+		errorHandler:    apperror.NewErrorHandler(),
 	}
 }
 
 func (h *FoodItemHandler) CreateFood(c *fiber.Ctx) error {
 	var request dto.FoodItemRequest
 	if err := c.BodyParser(&request); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	res, err := h.foodItemUseCase.CreateFood(c.Context(), request.ToEntity())
 	if err != nil {
 		if errors.Is(err, apperror.ErrNoUpdateRecord) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Food Successfully Created", dto.ToFoodItemResponse(res), nil)
@@ -44,10 +46,10 @@ func (h *FoodItemHandler) GetRewards(c *fiber.Ctx) error {
 	res, totalRows, err := h.foodItemUseCase.GetFoods(c.Context(), params.Limit, params.Offset)
 	if err != nil {
 		if errors.Is(err, apperror.ErrNoUpdateRecord) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data := dto.ToFoodItemsResponse(res)
@@ -59,16 +61,16 @@ func (h *FoodItemHandler) GetRewards(c *fiber.Ctx) error {
 func (h *FoodItemHandler) GetReward(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
 	}
 
 	res, err := h.foodItemUseCase.GetFoodByID(c.Context(), id)
 	if err != nil {
 		if errors.Is(err, apperror.ErrNoUpdateRecord) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data := dto.ToFoodItemResponse(res)
@@ -79,21 +81,21 @@ func (h *FoodItemHandler) GetReward(c *fiber.Ctx) error {
 func (h *FoodItemHandler) UpdateReward(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
 	}
 
 	var request dto.FoodItemRequest
 	if err := c.BodyParser(&request); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	res, err := h.foodItemUseCase.UpdateFood(c.Context(), id, request.ToEntity())
 	if err != nil {
 		if errors.Is(err, apperror.ErrNoUpdateRecord) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data := dto.ToFoodItemResponse(res)

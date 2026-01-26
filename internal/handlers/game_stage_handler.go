@@ -4,35 +4,38 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/winartodev/cat-cafe/internal/dto"
 	"github.com/winartodev/cat-cafe/internal/usecase"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/helper"
 	"github.com/winartodev/cat-cafe/pkg/response"
 )
 
 type GameStageHandler struct {
 	GameStageUseCase usecase.GameStageUseCase
+	errorHandler     *apperror.ErrorHandler
 }
 
 func NewGameStageHandler(gameStageUseCase usecase.GameStageUseCase) *GameStageHandler {
 	return &GameStageHandler{
 		GameStageUseCase: gameStageUseCase,
+		errorHandler:     apperror.NewErrorHandler(),
 	}
 }
 
 func (h *GameStageHandler) CreateGameStage(c *fiber.Ctx) error {
 	var req dto.CreateGameStageRequest
 	if err := c.BodyParser(&req); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	ctx := c.Context()
 	gameStage, stageConfig, err := req.ToEntities()
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data, err := h.GameStageUseCase.CreateGameStage(ctx, gameStage, stageConfig)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	helper.PrettyPrint(gameStage)
@@ -44,23 +47,23 @@ func (h *GameStageHandler) CreateGameStage(c *fiber.Ctx) error {
 func (h *GameStageHandler) UpdateGameStage(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	var req dto.UpdateGameStageRequest
 	if err := c.BodyParser(&req); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	ctx := c.Context()
 	gameStage, stageConfig, err := req.ToEntities(id)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data, err := h.GameStageUseCase.UpdateGameStage(ctx, gameStage, stageConfig)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Updated", data, nil)
@@ -73,7 +76,7 @@ func (h *GameStageHandler) GetGameStages(c *fiber.Ctx) error {
 
 	res, totalRows, err := h.GameStageUseCase.GetGameStages(ctx, params.Limit, params.Offset)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data := dto.ToGameStageResponses(res)
@@ -85,14 +88,14 @@ func (h *GameStageHandler) GetGameStages(c *fiber.Ctx) error {
 func (h *GameStageHandler) GetGameStage(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	ctx := c.Context()
 
 	gameStage, gameConfig, err := h.GameStageUseCase.GetGameStageByID(ctx, id)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Retrieved", dto.ToGameStageDetailResponse(gameStage, gameConfig), nil)

@@ -10,24 +10,26 @@ import (
 )
 
 type AuthHandler struct {
-	AuthUseCase usecase.AuthUseCase
+	AuthUseCase  usecase.AuthUseCase
+	errorHandler *apperror.ErrorHandler
 }
 
 func NewAuthHandler(authUseCase usecase.AuthUseCase) *AuthHandler {
 	return &AuthHandler{
-		AuthUseCase: authUseCase,
+		AuthUseCase:  authUseCase,
+		errorHandler: apperror.NewErrorHandler(),
 	}
 }
 
 func (a *AuthHandler) Login(c *fiber.Ctx) error {
 	authCode := c.Query("auth_code")
 	if authCode == "" {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrBadRequest)
+		return response.FailedResponse(c, a.errorHandler, apperror.ErrBadRequest)
 	}
 
 	token, user, gameData, err := a.AuthUseCase.Login(c.Context(), authCode)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, a.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Login Success", dto.ToLoginResponse(token, user, gameData), nil)
@@ -38,7 +40,7 @@ func (a *AuthHandler) Logout(c *fiber.Ctx) error {
 	userID := helper.GetUserID(c)
 
 	if err := a.AuthUseCase.Logout(c.Context(), token, userID); err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, a.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Logout Success", nil, nil)
@@ -49,7 +51,7 @@ func (a *AuthHandler) GetUserData(c *fiber.Ctx) error {
 
 	res, err := a.AuthUseCase.GetUserByID(c.Context(), userID)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, a.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Success Get User Data", dto.ToUserResponse(res), nil)

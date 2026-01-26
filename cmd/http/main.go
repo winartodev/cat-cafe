@@ -10,6 +10,7 @@ import (
 	"github.com/winartodev/cat-cafe/internal/middleware"
 	"github.com/winartodev/cat-cafe/internal/repositories"
 	"github.com/winartodev/cat-cafe/internal/usecase"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/jwt"
 	"log"
 	"os"
@@ -34,8 +35,10 @@ func main() {
 	}
 
 	app := fiber.New(fiber.Config{
-		AppName: cfg.App.Name,
+		AppName:      cfg.App.Name,
+		ErrorHandler: apperror.FiberErrorHandler(apperror.NewErrorHandler()),
 	})
+
 	app.Use(logger.New())
 	app.Use(cors.New())
 

@@ -16,28 +16,30 @@ import (
 type RewardHandler struct {
 	RewardUseCase      usecase.RewardUseCase
 	DailyRewardUseCase usecase.DailyRewardUseCase
+	errorHandler       *apperror.ErrorHandler
 }
 
 func NewRewardHandler(rewardUseCase usecase.RewardUseCase, dailyRewardUseCase usecase.DailyRewardUseCase) *RewardHandler {
 	return &RewardHandler{
 		RewardUseCase:      rewardUseCase,
 		DailyRewardUseCase: dailyRewardUseCase,
+		errorHandler:       apperror.NewErrorHandler(),
 	}
 }
 
 func (h *RewardHandler) CreateReward(c *fiber.Ctx) error {
 	var request dto.CreateRewardRequest
 	if err := c.BodyParser(&request); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	res, err := h.RewardUseCase.CreateReward(c.Context(), request.ToEntity())
 	if err != nil {
 		if errors.Is(err, apperror.ErrNoUpdateRecord) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Reward Successfully Created", dto.ToRewardResponse(res), nil)
@@ -49,10 +51,10 @@ func (h *RewardHandler) GetRewards(c *fiber.Ctx) error {
 	res, totalRows, err := h.RewardUseCase.GetRewards(c.Context(), params.Limit, params.Offset)
 	if err != nil {
 		if errors.Is(err, apperror.ErrNoUpdateRecord) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data := dto.ToRewardsResponse(res)
@@ -64,16 +66,16 @@ func (h *RewardHandler) GetRewards(c *fiber.Ctx) error {
 func (h *RewardHandler) CreateRewardType(c *fiber.Ctx) error {
 	var request dto.CreateRewardTypeRequest
 	if err := c.BodyParser(&request); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	res, err := h.RewardUseCase.CreateRewardType(c.Context(), *request.ToEntity())
 	if err != nil {
 		if errors.Is(err, apperror.ErrConflict) {
-			return response.FailedResponse(c, fiber.StatusConflict, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusCreated, "Reward Type Successfully Created", dto.ToRewardTypeResponse(res), nil)
@@ -82,21 +84,21 @@ func (h *RewardHandler) CreateRewardType(c *fiber.Ctx) error {
 func (h *RewardHandler) UpdateRewardType(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	var request dto.UpdateRewardTypeRequest
 	if err := c.BodyParser(&request); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	res, err := h.RewardUseCase.UpdateRewardTypes(c.Context(), id, *request.ToEntity())
 	if err != nil {
 		if errors.Is(err, apperror.ErrConflict) {
-			return response.FailedResponse(c, fiber.StatusConflict, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusCreated, "Reward Type Successfully Created", dto.ToRewardTypeResponse(res), nil)
@@ -105,7 +107,7 @@ func (h *RewardHandler) UpdateRewardType(c *fiber.Ctx) error {
 func (h *RewardHandler) GetRewardTypes(c *fiber.Ctx) error {
 	res, err := h.RewardUseCase.GetRewardTypes(c.Context())
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Reward Type Successfully Retrieved", dto.ToRewardTypeResponses(res), nil)
@@ -114,16 +116,16 @@ func (h *RewardHandler) GetRewardTypes(c *fiber.Ctx) error {
 func (h *RewardHandler) GetRewardTypeByID(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, apperror.ErrInvalidParam)
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
 	}
 
 	res, err := h.RewardUseCase.GetRewardTypeByID(c.Context(), id)
 	if err != nil {
 		if errors.Is(err, apperror.ErrRecordNotFound) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Reward Type Successfully Retrieved", dto.ToRewardTypeResponse(res), nil)
@@ -132,13 +134,13 @@ func (h *RewardHandler) GetRewardTypeByID(c *fiber.Ctx) error {
 func (h *RewardHandler) CreateDailyReward(c *fiber.Ctx) error {
 	var request dto.DailyRewardRequest
 	if err := c.BodyParser(&request); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	ctx := c.Context()
 	res, err := h.DailyRewardUseCase.CreateDailyReward(ctx, *request.ToEntity(), request.Reward)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusCreated, "Daily Reward Successfully Created", dto.ToDailyRewardResponse(res), nil)
@@ -150,7 +152,7 @@ func (h *RewardHandler) GetDailyRewards(c *fiber.Ctx) error {
 
 	res, totalRow, err := h.DailyRewardUseCase.GetDailyRewards(ctx, params.Limit, params.Offset)
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	data := dto.ToDailyRewardResponses(res)
@@ -162,7 +164,7 @@ func (h *RewardHandler) GetDailyRewards(c *fiber.Ctx) error {
 func (h *RewardHandler) GetDailyRewardByID(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	ctx := c.Context()
@@ -170,10 +172,10 @@ func (h *RewardHandler) GetDailyRewardByID(c *fiber.Ctx) error {
 	res, err := h.DailyRewardUseCase.GetDailyRewardID(ctx, id)
 	if err != nil {
 		if errors.Is(err, apperror.ErrRecordNotFound) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Successfully Retrieved", dto.ToDailyRewardResponse(res), nil)
@@ -182,22 +184,22 @@ func (h *RewardHandler) GetDailyRewardByID(c *fiber.Ctx) error {
 func (h *RewardHandler) UpdateDailyReward(c *fiber.Ctx) error {
 	id, err := helper.GetParam[int64](c, "id")
 	if err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	var request dto.DailyRewardRequest
 	if err := c.BodyParser(&request); err != nil {
-		return response.FailedResponse(c, fiber.StatusBadRequest, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	ctx := c.Context()
 	res, err := h.DailyRewardUseCase.UpdateDailyReward(ctx, id, *request.ToEntity(), request.Reward)
 	if err != nil {
 		if errors.Is(err, apperror.ErrRecordNotFound) {
-			return response.FailedResponse(c, fiber.StatusNotFound, err)
+			return response.FailedResponse(c, h.errorHandler, err)
 		}
 
-		return response.FailedResponse(c, fiber.StatusInternalServerError, err)
+		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Successfully Updated", dto.ToDailyRewardResponse(res), nil)

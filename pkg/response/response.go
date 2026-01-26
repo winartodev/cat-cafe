@@ -1,7 +1,10 @@
 package response
 
 import (
+	"errors"
 	"github.com/gofiber/fiber/v2"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
+	"net/http"
 )
 
 // response represents a standard API response format for successful requests.
@@ -41,11 +44,38 @@ func SuccessResponse(c *fiber.Ctx, code int, message string, data interface{}, m
 	})
 }
 
-// FailedResponse sends a JSON response when a system or logic error occurs.
-func FailedResponse(c *fiber.Ctx, code int, err error) error {
-	return c.Status(code).JSON(errorResponse{
+func FailedResponse(c *fiber.Ctx, handler *apperror.ErrorHandler, err error) error {
+	statusCode, message, code, details := handler.HandleError(err)
+
+	// Build error object
+	errorObj := map[string]interface{}{
+		"code": code,
+	}
+	if details != "" {
+		errorObj["details"] = details
+	}
+
+	return c.Status(statusCode).JSON(errorResponse{
 		Success: false,
-		Message: "Operation failed",
-		Error:   err.Error(),
+		Message: message,
+		Error:   errorObj,
 	})
+}
+
+// GetHTTPStatus is a helper to get just the HTTP status code from an error
+func GetHTTPStatus(err error) int {
+	var appErr *apperror.AppError
+	if errors.As(err, &appErr) {
+		return appErr.StatusCode
+	}
+	return http.StatusInternalServerError
+}
+
+// GetErrorMessage is a helper to get just the message from an error
+func GetErrorMessage(err error) string {
+	var appErr *apperror.AppError
+	if errors.As(err, &appErr) {
+		return appErr.Message
+	}
+	return "An unexpected error occurred"
 }
