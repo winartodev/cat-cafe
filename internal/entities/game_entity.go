@@ -28,7 +28,6 @@ type UserNextGameStageInfo struct {
 }
 
 type UpgradeKitchenStation struct {
-	Success        bool  `json:"success"`
 	NewLevel       int64 `json:"new_level"`
 	IsMaxLevel     bool  `json:"is_max_level"`
 	NewCoinBalance int64 `json:"new_coin_balance"`
@@ -52,4 +51,12 @@ type UpgradeKitchenStation struct {
 	// Rewards
 	PhaseRewards    []PhaseRewardInfo `json:"phase_rewards,omitempty"`
 	AllPhaseRewards []PhaseRewardInfo `json:"all_phase_rewards,omitempty"`
+}
+
+type UnlockKitchenStation struct {
+	UnlockedSlug   string `json:"unlocked_slug"`
+	NewCoinBalance int64  `json:"new_coin_balance"`
+	CoinsSpent     int64  `json:"coins_spent"`
+	StationName    string `json:"station_name"`
+	StationLevel   int64  `json:"station_level"`
 }

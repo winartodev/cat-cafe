@@ -49,9 +49,11 @@ var (
 
 	// --- DOMAIN: GAME STAGE ---
 
-	ErrStageNotUnlocked      = errors.New("stage is locked")
-	ErrStageAlreadyCompleted = errors.New("stage already completed")
-	ErrUserNotStartedGame    = errors.New("user not started game")
-	ErrMaxLevelReached       = errors.New("max level reached")
-	ErrInsufficientCoins     = errors.New("insufficient coins")
+	ErrStageNotUnlocked       = errors.New("stage is locked")
+	ErrStageAlreadyCompleted  = errors.New("stage already completed")
+	ErrUserNotStartedGame     = errors.New("user not started game")
+	ErrMaxLevelReached        = errors.New("max level reached")
+	ErrInsufficientCoins      = errors.New("insufficient coins")
+	ErrStationNotUnlocked     = errors.New("station not unlocked")
+	ErrStationAlreadyUnlocked = errors.New("station already unlocked")
 )

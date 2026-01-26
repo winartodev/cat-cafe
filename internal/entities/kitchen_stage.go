@@ -44,15 +44,6 @@ type KitchenPhaseCompletionRewards struct {
 	RewardType string `json:"reward_type"`
 }
 
-type PhaseInfo struct {
-	CurrentPhase          int64
-	CurrentPhaseStart     int64
-	CurrentPhaseEnd       int64
-	ProfitMultiplier      float64
-	UpgradeCostMultiplier float64
-	TableCount            int64
-}
-
 type PhaseRewardInfo struct {
 	PhaseNumber int    `json:"phase_number"`
 	RewardType  string `json:"reward_type"`
