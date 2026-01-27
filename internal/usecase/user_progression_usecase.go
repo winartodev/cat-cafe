@@ -3,9 +3,10 @@ package usecase
 import (
 	"context"
 	"database/sql"
-	"fmt"
+
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
 )
 
 type UserProgressionUseCase interface {
@@ -55,7 +56,7 @@ func (u *userProgressionUseCase) getOrCreateKitchenProgress(
 	gameConfig *entities.GameStageConfig,
 ) (res *entities.UserKitchenStageProgression, err error) {
 	if gameConfig == nil {
-		return nil, fmt.Errorf("kitchen config is nil")
+		return nil, apperror.ErrMissingKitchenConfig
 	}
 
 	kitchenProgression, err := repo.GetUserKitchenProgressDB(ctx, userID, stageID)
@@ -67,15 +68,25 @@ func (u *userProgressionUseCase) getOrCreateKitchenProgress(
 		return kitchenProgression, nil
 	}
 
-	stationLevels := make(map[string]int64)
+	stationLevels := make(map[string]entities.UserStationLevel)
 	var unlockedStations []string
 
 	for _, station := range gameConfig.KitchenStations {
 		if station.AutoUnlock {
-			stationLevels[station.FoodItemSlug] = 1
+			stationLevels[station.FoodItemSlug] = entities.UserStationLevel{
+				Level:           1,
+				Cost:            station.InitialCost,
+				Profit:          station.InitialProfit,
+				PreparationTime: station.CookingTime,
+			}
 			unlockedStations = append(unlockedStations, station.FoodItemSlug)
 		} else {
-			stationLevels[station.FoodItemSlug] = 0
+			stationLevels[station.FoodItemSlug] = entities.UserStationLevel{
+				Level:           0,
+				Cost:            0,
+				Profit:          0,
+				PreparationTime: 0,
+			}
 		}
 	}
 
@@ -101,7 +112,7 @@ func (u *userProgressionUseCase) getOrCreateKitchenPhaseProgression(
 	kitchenConfigID int64,
 ) (res *entities.UserKitchenPhaseProgression, err error) {
 	if kitchenConfigID == 0 {
-		return nil, fmt.Errorf("kitchen config is nil")
+		return nil, apperror.ErrMissingKitchenConfig
 	}
 
 	kitchenPhaseProgression, err := repo.GetUserKitchenPhaseProgressionDB(ctx, userID, kitchenConfigID)

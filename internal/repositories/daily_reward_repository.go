@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"time"
+
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/helper"
-	"time"
 )
 
 const (
@@ -213,20 +214,6 @@ func (r *dailyRewardRepository) DailyRewardWithTx(ctx context.Context, fn func(t
 	}
 
 	return tx.Commit()
-}
-
-func (r *dailyRewardRepository) scanRewardTypeRow(row *sql.Row) (*entities.RewardType, error) {
-	var res entities.RewardType
-
-	err := row.Scan(&res.ID, &res.Slug, &res.Name)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &res, err
 }
 
 func (r *dailyRewardRepository) scanDailyRewardTypeRow(row *sql.Row) (*entities.DailyReward, error) {

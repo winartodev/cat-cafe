@@ -121,8 +121,9 @@ const (
 			SELECT json_agg(json_build_object(
 					'food_item_slug', fi.slug,
 					'food_name', fi.name,
-					'starting_price', fi.starting_price,
-					'starting_preparation', fi.starting_preparation,
+					'initial_cost', fi.initial_cost,
+					'initial_profit', fi.initial_profit,
+					'cooking_time', fi.cooking_time,
 					'auto_unlock', ks.auto_unlock
 							)) as data
 			FROM kitchen_stations AS ks

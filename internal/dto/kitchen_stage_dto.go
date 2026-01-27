@@ -14,11 +14,12 @@ type KitchenConfigRequest struct {
 }
 
 type KitchenStationDTO struct {
-	FoodItemSlug        string  `json:"food_item_slug"`
-	FoodName            string  `json:"food_name"`
-	AutoUnlock          bool    `json:"auto_unlock"`
-	StartingPrice       int64   `json:"starting_price"`
-	StartingPreparation float64 `json:"starting_preparation"`
+	FoodItemSlug  string  `json:"food_item_slug"`
+	FoodName      string  `json:"food_name"`
+	AutoUnlock    bool    `json:"auto_unlock"`
+	InitialCost   int64   `json:"initial_cost"`
+	InitialProfit int64   `json:"initial_profit"`
+	CookingTime   float64 `json:"cooking_time"`
 }
 
 type KitchenConfigDTO struct {
@@ -45,11 +46,12 @@ func toKitchenStationDTO(data *entities.KitchenStation) *KitchenStationDTO {
 	}
 
 	return &KitchenStationDTO{
-		FoodItemSlug:        data.FoodItemSlug,
-		FoodName:            data.FoodName,
-		AutoUnlock:          data.AutoUnlock,
-		StartingPrice:       data.StartingPrice,
-		StartingPreparation: data.StartingPreparation,
+		FoodItemSlug:  data.FoodItemSlug,
+		FoodName:      data.FoodName,
+		AutoUnlock:    data.AutoUnlock,
+		InitialCost:   data.InitialCost,
+		InitialProfit: data.InitialProfit,
+		CookingTime:   data.CookingTime,
 	}
 }
 

@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"github.com/lib/pq"
+
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/database"
@@ -13,6 +15,7 @@ import (
 
 type FoodItemRepository interface {
 	WithTx(tx *sql.Tx) FoodItemRepository
+	FoodItemWithTx(ctx context.Context, fn func(tx *sql.Tx) error) error
 
 	CreateFoodDB(ctx context.Context, data entities.FoodItem) (id *int64, err error)
 	UpdateFoodDB(ctx context.Context, id int64, data entities.FoodItem) (err error)
@@ -22,6 +25,11 @@ type FoodItemRepository interface {
 	CountFoodItemDB(ctx context.Context) (count int64, err error)
 
 	GetFoodItemIDsBySlugsDB(ctx context.Context, slugs []string) (map[string]int64, error)
+
+	CreateOverrideLevelDB(ctx context.Context, foodItemID int64, data []entities.FoodItemOverrideLevel) (err error)
+	GetOverrideLevelDB(ctx context.Context, foodItemID int64) ([]entities.FoodItemOverrideLevel, error)
+	GetOverrideLevelByFoodItemIDAndLevelDB(ctx context.Context, foodItemID int64, level int) (*entities.FoodItemOverrideLevel, error)
+	DeleteOverrideLevelDB(ctx context.Context, foodItemID int64) (err error)
 }
 
 type foodItemRepository struct {
@@ -50,6 +58,21 @@ func (r *foodItemRepository) WithTx(tx *sql.Tx) FoodItemRepository {
 	}
 }
 
+func (r *foodItemRepository) FoodItemWithTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := r.pool.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (r *foodItemRepository) CreateFoodDB(ctx context.Context, data entities.FoodItem) (id *int64, err error) {
 	now := helper.NowUTC()
 	var lastInsertId int64
@@ -58,8 +81,9 @@ func (r *foodItemRepository) CreateFoodDB(ctx context.Context, data entities.Foo
 		insertFoodItemQuery,
 		data.Slug,
 		data.Name,
-		data.StartingPrice,
-		data.StartingPreparation,
+		data.InitialCost,
+		data.InitialProfit,
+		data.CookingTime,
 		now,
 		now,
 	).Scan(&lastInsertId)
@@ -80,8 +104,9 @@ func (r *foodItemRepository) UpdateFoodDB(ctx context.Context, id int64, data en
 	res, err := r.db.ExecContext(ctx,
 		updateFoodItemQuery,
 		data.Name,
-		data.StartingPrice,
-		data.StartingPreparation,
+		data.InitialProfit,
+		data.CookingTime,
+		data.InitialCost,
 		now,
 		id,
 	)
@@ -122,8 +147,9 @@ func (r *foodItemRepository) GetFoodsDB(ctx context.Context, limit, offset int) 
 			&data.ID,
 			&data.Slug,
 			&data.Name,
-			&data.StartingPrice,
-			&data.StartingPreparation,
+			&data.InitialCost,
+			&data.InitialProfit,
+			&data.CookingTime,
 		)
 		if err != nil {
 			return nil, err
@@ -142,8 +168,9 @@ func (r *foodItemRepository) scanFoodItemRow(row *sql.Row) (*entities.FoodItem, 
 		&data.ID,
 		&data.Slug,
 		&data.Name,
-		&data.StartingPrice,
-		&data.StartingPreparation,
+		&data.InitialCost,
+		&data.InitialProfit,
+		&data.CookingTime,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -183,4 +210,85 @@ func (r *foodItemRepository) GetFoodItemIDsBySlugsDB(ctx context.Context, slugs 
 		result[slug] = id
 	}
 	return result, nil
+}
+
+func (r *foodItemRepository) GetOverrideLevelDB(ctx context.Context, foodItemID int64) (res []entities.FoodItemOverrideLevel, err error) {
+	rows, err := r.db.QueryContext(ctx, getOverrideLevelQuery, foodItemID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var data entities.FoodItemOverrideLevel
+		err := rows.Scan(
+			&data.FoodItemID,
+			&data.Level,
+			&data.Cost,
+			&data.Profit,
+			&data.PreparationTime,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		res = append(res, data)
+	}
+
+	return res, nil
+}
+
+func (r *foodItemRepository) GetOverrideLevelByFoodItemIDAndLevelDB(ctx context.Context, foodItemID int64, level int) (*entities.FoodItemOverrideLevel, error) {
+	var data entities.FoodItemOverrideLevel
+	err := r.db.QueryRowContext(ctx, getOverrideLevelByFoodItemIDAndLevelQuery, foodItemID, level).Scan(
+		&data.FoodItemID,
+		&data.Level,
+		&data.Cost,
+		&data.Profit,
+		&data.PreparationTime,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+func (r *foodItemRepository) CreateOverrideLevelDB(ctx context.Context, foodItemID int64, data []entities.FoodItemOverrideLevel) (err error) {
+	if len(data) == 0 {
+		return nil
+	}
+
+	numFields := 7
+	query := r.BuildBulkInsertQuery(insertFoodItemOverrideLevelQuery, len(data), numFields, "")
+	args := make([]interface{}, 0, len(data)*numFields)
+	now := helper.NowUTC()
+
+	for _, item := range data {
+		args = append(args, foodItemID, item.Level, item.Cost, item.Profit, item.PreparationTime, now, now)
+	}
+
+	_, err = r.db.ExecContext(ctx, query, args...)
+	if database.IsDuplicateError(err) {
+		return apperror.ErrConflict
+	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *foodItemRepository) DeleteOverrideLevelDB(ctx context.Context, foodItemID int64) (err error) {
+	_, err = r.db.ExecContext(ctx,
+		deleteFoodItemOverrideLevelQuery,
+		foodItemID,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

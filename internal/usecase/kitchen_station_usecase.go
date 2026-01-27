@@ -4,20 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
+
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
-	"math"
 )
 
 type unlockContext struct {
-	userID        int64
-	stageID       int64
-	slug          string
-	foodItem      *entities.FoodItem
-	kitchenConfig *entities.StageKitchenConfig
-	userProgress  *entities.UserKitchenStageProgression
-	userBalance   *entities.UserBalance
+	userID            int64
+	stageID           int64
+	slug              string
+	foodItem          *entities.FoodItem
+	kitchenStation    *entities.KitchenStation
+	kitchenConfig     *entities.StageKitchenConfig
+	userProgress      *entities.UserKitchenStageProgression
+	userBalance       *entities.UserBalance
+	foodOverrideLevel *entities.FoodItemOverrideLevel
 }
 
 type upgradeContext struct {
@@ -30,8 +33,8 @@ type upgradeContext struct {
 	userProgress   *entities.UserKitchenStageProgression
 	phaseProgress  *entities.UserKitchenPhaseProgression
 	userBalance    *entities.UserBalance
-	currentLevel   int64
-	nextLevel      int64
+	currentStation entities.UserStationLevel
+	nextStation    entities.UserStationLevel
 }
 
 type unlockResult struct {
@@ -63,70 +66,6 @@ type phaseInfo struct {
 	TableCount            int64
 }
 
-func (g *gameUseCase) UnlockKitchenStation(ctx context.Context, userID int64, slug string) (*entities.UnlockKitchenStation, error) {
-	// Step 1: Gather data for unlock
-	unlockCtx, err := g.gatherUnlockData(ctx, userID, slug)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 2: Validate unlock requirements
-	if err := g.validateUnlockRequirements(unlockCtx); err != nil {
-		return nil, err
-	}
-
-	// Step 3: Calculate unlock cost
-	result := g.calculateUnlockCost(unlockCtx)
-
-	// Step 4: Check sufficient funds
-	if unlockCtx.userBalance.Coin < result.unlockCost {
-		return nil, apperror.ErrInsufficientCoins
-	}
-
-	// Step 5: Execute unlock transaction
-	if err := g.executeUnlockTransaction(ctx, unlockCtx, result); err != nil {
-		return nil, err
-	}
-
-	// Step 6: Log unlock details
-	g.logUnlockDetails(unlockCtx, result)
-
-	// Step 7: Build and return response
-	return g.buildUnlockResponse(unlockCtx, result), nil
-}
-
-func (g *gameUseCase) UpgradeKitchenStation(ctx context.Context, userID int64, slug string) (*entities.UpgradeKitchenStation, error) {
-	// Gather all required data
-	upgradeCtx, err := g.gatherUpgradeData(ctx, userID, slug)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate upgrade requirements
-	if err := g.validateUpgradeRequirements(upgradeCtx); err != nil {
-		return nil, err
-	}
-
-	// Calculate upgrade metrics
-	result := g.calculateUpgradeMetrics(upgradeCtx)
-
-	// Check sufficient funds
-	if upgradeCtx.userBalance.Coin < result.upgradeCost {
-		return nil, apperror.ErrInsufficientCoins
-	}
-
-	// Execute upgrade transaction
-	if err := g.executeUpgradeTransaction(ctx, upgradeCtx, result); err != nil {
-		return nil, err
-	}
-
-	// Log upgrade details
-	g.logUpgradeDetails(upgradeCtx, result)
-
-	// Build and return response
-	return g.buildUpgradeResponse(upgradeCtx, result), nil
-}
-
 func (g *gameUseCase) gatherUnlockData(ctx context.Context, userID int64, slug string) (*unlockContext, error) {
 	uctx := &unlockContext{
 		userID: userID,
@@ -149,6 +88,16 @@ func (g *gameUseCase) gatherUnlockData(ctx context.Context, userID int64, slug s
 		return nil, err
 	}
 	if uctx.foodItem == nil {
+		return nil, apperror.ErrRecordNotFound
+	}
+
+	// Get kitchen stations
+	uctx.kitchenStation, err = g.kitchenStationRepo.GetKitchenStationByFoodIDDB(ctx, uctx.stageID, uctx.foodItem.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if uctx.kitchenStation == nil {
 		return nil, apperror.ErrRecordNotFound
 	}
 
@@ -241,6 +190,8 @@ func (g *gameUseCase) gatherUpgradeData(ctx context.Context, userID int64, slug 
 }
 
 func (g *gameUseCase) validateUnlockRequirements(unlockContext *unlockContext) error {
+	//
+
 	// Check if station is already unlocked
 	if g.isStationUnlocked(unlockContext.userProgress.UnlockedStations, unlockContext.slug) {
 		return apperror.ErrStationAlreadyUnlocked
@@ -256,15 +207,24 @@ func (g *gameUseCase) validateUpgradeRequirements(upgradeContext *upgradeContext
 	}
 
 	// Get current level
-	currentLevel, exists := upgradeContext.userProgress.StationLevels[upgradeContext.slug]
+	stationLevel, exists := upgradeContext.userProgress.StationLevels[upgradeContext.slug]
 	if !exists {
-		currentLevel = 0
+		stationLevel.Level = 0
+		stationLevel.Cost = 0
+		stationLevel.Profit = 0
+		stationLevel.PreparationTime = 0
 	}
-	upgradeContext.currentLevel = currentLevel
-	upgradeContext.nextLevel = currentLevel + 1
+
+	upgradeContext.currentStation = stationLevel
+	upgradeContext.nextStation = entities.UserStationLevel{
+		Level:           stationLevel.Level + 1,
+		Cost:            stationLevel.Cost,
+		Profit:          stationLevel.Profit,
+		PreparationTime: stationLevel.PreparationTime,
+	}
 
 	// Check max level
-	if upgradeContext.currentLevel >= upgradeContext.kitchenConfig.MaxLevel {
+	if upgradeContext.currentStation.Level >= upgradeContext.kitchenConfig.MaxLevel {
 		return apperror.ErrMaxLevelReached
 	}
 
@@ -286,37 +246,43 @@ func (g *gameUseCase) isStationUnlocked(unlockedStations []string, slug string) 
 
 func (g *gameUseCase) calculateUnlockCost(unlockContext *unlockContext) *unlockResult {
 	return &unlockResult{
-		unlockCost:     unlockContext.foodItem.StartingPrice,
-		newCoinBalance: unlockContext.userBalance.Coin - unlockContext.foodItem.StartingPrice,
+		unlockCost:     unlockContext.foodItem.InitialCost,
+		newCoinBalance: unlockContext.userBalance.Coin - unlockContext.foodItem.InitialCost,
 		unlockedSlug:   unlockContext.slug,
 	}
 }
 
-func (g *gameUseCase) calculateUpgradeMetrics(upgradeContext *upgradeContext) *upgradeResult {
+func (g *gameUseCase) calculateUpgradeMetrics(upgradeContext *upgradeContext, isUseOverride bool) *upgradeResult {
 	result := &upgradeResult{}
 
-	result.oldPhaseInfo = g.calculatePhaseInfo(upgradeContext.currentLevel, upgradeContext.kitchenConfig)
-	result.newPhaseInfo = g.calculatePhaseInfo(upgradeContext.nextLevel, upgradeContext.kitchenConfig)
+	result.oldPhaseInfo = g.calculatePhaseInfo(upgradeContext.currentStation.Level, upgradeContext.kitchenConfig)
+	result.newPhaseInfo = g.calculatePhaseInfo(upgradeContext.nextStation.Level, upgradeContext.kitchenConfig)
 
-	result.upgradeCost = g.calculateUpgradeCost(
-		upgradeContext.foodItem.StartingPrice,
-		upgradeContext.nextLevel,
-		upgradeContext.kitchenConfig,
-		result.newPhaseInfo.CurrentPhase,
-	)
+	if !isUseOverride {
+		result.upgradeCost = g.calculateUpgradeCost(
+			upgradeContext.currentStation.Cost,
+			upgradeContext.currentStation.Level,
+			upgradeContext.kitchenConfig,
+			result.newPhaseInfo.CurrentPhase,
+		)
 
-	result.currentProfit = g.calculateProfit(
-		upgradeContext.foodItem.StartingPrice,
-		upgradeContext.nextLevel,
-		upgradeContext.kitchenConfig,
-		result.newPhaseInfo.CurrentPhase,
-		0,
-	)
+		result.currentProfit = g.calculateProfit(
+			upgradeContext.currentStation.Profit,
+			upgradeContext.currentStation.Level,
+			upgradeContext.kitchenConfig,
+			result.newPhaseInfo.CurrentPhase,
+			0,
+		)
 
-	result.preparationTime = g.calculateCurrentProcessTime(
-		upgradeContext.foodItem.StartingPreparation,
-		1, 1,
-	)
+		result.preparationTime = g.calculateCurrentProcessTime(
+			upgradeContext.currentStation.PreparationTime,
+			1, 1,
+		)
+	} else {
+		result.upgradeCost = upgradeContext.nextStation.Cost
+		result.currentProfit = upgradeContext.nextStation.Profit
+		result.preparationTime = upgradeContext.nextStation.PreparationTime
+	}
 
 	result.newCoinBalance = upgradeContext.userBalance.Coin - result.upgradeCost
 	result.phaseTransitioned = result.newPhaseInfo.CurrentPhase > result.oldPhaseInfo.CurrentPhase
@@ -424,7 +390,7 @@ func (g *gameUseCase) executeUpgradeTransaction(ctx context.Context, upgradeCont
 		}
 
 		// Handle max level rewards
-		if upgradeContext.nextLevel >= upgradeContext.kitchenConfig.MaxLevel {
+		if upgradeContext.nextStation.Level >= upgradeContext.kitchenConfig.MaxLevel {
 			if err := g.handleMaxLevelRewards(ctx, tx, upgradeContext, result); err != nil {
 				// Log but don't fail the transaction
 				fmt.Printf("Error collecting all phase rewards: %v\n", err)
@@ -443,9 +409,16 @@ func (g *gameUseCase) unlockStation(ctx context.Context, repo repositories.UserP
 
 	// Initialize station level to 0
 	if uctx.userProgress.StationLevels == nil {
-		uctx.userProgress.StationLevels = make(map[string]int64)
+		uctx.userProgress.StationLevels = make(map[string]entities.UserStationLevel)
 	}
-	uctx.userProgress.StationLevels[uctx.slug] = 1
+
+	// TODO: FIX THIS
+	uctx.userProgress.StationLevels[uctx.slug] = entities.UserStationLevel{
+		Level:           1,
+		Cost:            uctx.foodItem.InitialCost,
+		Profit:          uctx.foodItem.InitialProfit,
+		PreparationTime: uctx.foodItem.CookingTime,
+	}
 
 	// Update progress in database
 	return repo.UpdateUserKitchenProgressDB(ctx, uctx.userID, uctx.stageID, uctx.userProgress)
@@ -453,7 +426,7 @@ func (g *gameUseCase) unlockStation(ctx context.Context, repo repositories.UserP
 
 func (g *gameUseCase) updateStationLevel(ctx context.Context, repo repositories.UserProgressionRepository, upgradeContext *upgradeContext, result *upgradeResult) error {
 	stationLevels := upgradeContext.userProgress.StationLevels
-	stationLevels[upgradeContext.slug] = upgradeContext.nextLevel
+	stationLevels[upgradeContext.slug] = upgradeContext.nextStation
 	upgradeContext.userProgress.StationLevels = stationLevels
 	return repo.UpdateUserKitchenProgressDB(ctx, upgradeContext.userID, upgradeContext.stageID, upgradeContext.userProgress)
 }
@@ -645,12 +618,9 @@ func (g *gameUseCase) grantPhaseReward(
 	kitchenConfigID int64,
 	phaseReward *entities.KitchenPhaseCompletionRewards,
 ) (entities.PhaseRewardInfo, error) {
-	fmt.Println("grantPhaseReward")
 	rewardRepo := g.rewardRepo.WithTx(tx)
 	userRepo := g.userRepo.WithTx(tx)
 	userProgression := g.userProgressionRepo.WithTx(tx)
-
-	fmt.Println("phaseReward: ", phaseReward.RewardID)
 
 	// Get reward details
 	reward, err := rewardRepo.GetRewardByIDDB(ctx, phaseReward.RewardID)
@@ -788,7 +758,7 @@ func (g *gameUseCase) logUnlockDetails(unlockContext *unlockContext, result *unl
 func (g *gameUseCase) logUpgradeDetails(upgradeContext *upgradeContext, result *upgradeResult) {
 	fmt.Println("==================================================")
 	fmt.Printf("UPGRADE SUCCESS: %s\n", upgradeContext.slug)
-	fmt.Printf("Level     : %d -> %d\n", upgradeContext.currentLevel, upgradeContext.nextLevel)
+	fmt.Printf("Level     : %d -> %d\n", upgradeContext.currentStation.Level, upgradeContext.nextStation.Level)
 	fmt.Printf("Cost      : %d Coins\n", result.upgradeCost)
 	fmt.Printf("Balance   : %d -> %d\n", upgradeContext.userBalance.Coin, result.newCoinBalance)
 	fmt.Println("--------------------------------------------------")
@@ -804,7 +774,7 @@ func (g *gameUseCase) logUpgradeDetails(upgradeContext *upgradeContext, result *
 		fmt.Printf("New Table Count: %d\n", result.newTableCount)
 	}
 
-	if upgradeContext.nextLevel >= upgradeContext.kitchenConfig.MaxLevel {
+	if upgradeContext.nextStation.Level >= upgradeContext.kitchenConfig.MaxLevel {
 		fmt.Println("MAX LEVEL REACHED!")
 		fmt.Printf("Final Rewards: %+v\n", result.allPhaseRewardsCollected)
 	}
@@ -824,8 +794,8 @@ func (g *gameUseCase) buildUnlockResponse(unlockContext *unlockContext, result *
 
 func (g *gameUseCase) buildUpgradeResponse(upgradeContext *upgradeContext, result *upgradeResult) *entities.UpgradeKitchenStation {
 	return &entities.UpgradeKitchenStation{
-		NewLevel:       upgradeContext.nextLevel,
-		IsMaxLevel:     upgradeContext.nextLevel >= upgradeContext.kitchenConfig.MaxLevel,
+		NewLevel:       upgradeContext.nextStation.Level,
+		IsMaxLevel:     upgradeContext.nextStation.Level >= upgradeContext.kitchenConfig.MaxLevel,
 		NewCoinBalance: result.newCoinBalance,
 		CoinsSpent:     result.upgradeCost,
 

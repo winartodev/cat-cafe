@@ -18,8 +18,9 @@ const (
 		    ks.auto_unlock,
 		    fi.slug,
 		    fi.name,
-		    fi.starting_price,
-		    fi.starting_preparation
+		    fi.initial_profit,
+		    fi.cooking_time,
+		    fi.initial_cost
 		FROM kitchen_stations AS ks
 			JOIN food_items AS fi ON fi.id = ks.food_item_id
 		WHERE ks.stage_id = $1
@@ -37,8 +38,9 @@ const (
 		    ks.auto_unlock,
 		    fi.slug,
 		    fi.name,
-		    fi.starting_price,
-		    fi.starting_preparation
+		    fi.initial_profit,
+		    fi.cooking_time,
+		    fi.initial_cost
 		FROM kitchen_stations AS ks
 			JOIN food_items AS fi ON fi.id = ks.food_item_id
 		WHERE ks.stage_id = $1 AND ks.food_item_id = $2

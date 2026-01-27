@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"github.com/winartodev/cat-cafe/internal/dto"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
@@ -159,7 +160,7 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 	}
 
 	if !canAccess {
-		return nil, nil, nil, apperror.ErrStageNotUnlocked
+		return nil, nil, nil, apperror.ErrStageLocked
 	}
 
 	config, err = g.gameStageRepo.GetGameConfigByIDDB(ctx, stage.ID)
@@ -285,13 +286,92 @@ func (g *gameUseCase) CompleteGameStage(ctx context.Context, userID int64, slug 
 	return nil
 }
 
+func (g *gameUseCase) UnlockKitchenStation(ctx context.Context, userID int64, slug string) (*entities.UnlockKitchenStation, error) {
+	// Gather data for unlock
+	unlockCtx, err := g.gatherUnlockData(ctx, userID, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate unlock requirements
+	if err := g.validateUnlockRequirements(unlockCtx); err != nil {
+		return nil, err
+	}
+
+	// Calculate unlock cost
+	result := g.calculateUnlockCost(unlockCtx)
+
+	// Check sufficient funds
+	if unlockCtx.userBalance.Coin < result.unlockCost {
+		return nil, apperror.ErrInsufficientCoins
+	}
+
+	// Execute unlock transaction
+	if err := g.executeUnlockTransaction(ctx, unlockCtx, result); err != nil {
+		return nil, err
+	}
+
+	// Log unlock details
+	g.logUnlockDetails(unlockCtx, result)
+
+	// Build and return response
+	return g.buildUnlockResponse(unlockCtx, result), nil
+}
+
+func (g *gameUseCase) UpgradeKitchenStation(ctx context.Context, userID int64, slug string) (*entities.UpgradeKitchenStation, error) {
+	// Gather all required data
+	upgradeCtx, err := g.gatherUpgradeData(ctx, userID, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate upgrade requirements
+	if err := g.validateUpgradeRequirements(upgradeCtx); err != nil {
+		return nil, err
+	}
+
+	// get food override level
+	overrideLevel, err := g.foodItemRepo.GetOverrideLevelByFoodItemIDAndLevelDB(ctx, upgradeCtx.foodItem.ID, int(upgradeCtx.nextStation.Level))
+	if err != nil {
+		return nil, err
+	}
+
+	if overrideLevel != nil {
+		upgradeCtx.nextStation = entities.UserStationLevel{
+			Level:           overrideLevel.Level,
+			Cost:            overrideLevel.Cost,
+			Profit:          overrideLevel.Profit,
+			PreparationTime: overrideLevel.PreparationTime,
+		}
+	}
+
+	// Calculate upgrade metrics
+	result := g.calculateUpgradeMetrics(upgradeCtx, overrideLevel != nil)
+
+	// Check sufficient funds
+	if upgradeCtx.userBalance.Coin < result.upgradeCost {
+		return nil, apperror.ErrInsufficientCoins
+	}
+
+	// Execute upgrade transaction
+	if err := g.executeUpgradeTransaction(ctx, upgradeCtx, result); err != nil {
+		return nil, err
+	}
+
+	// Log upgrade details
+	g.logUpgradeDetails(upgradeCtx, result)
+
+	// Build and return response
+	return g.buildUpgradeResponse(upgradeCtx, result), nil
+}
+
 func (g *gameUseCase) validateLastProgression(lastProgression *entities.UserGameStageProgression, stage *entities.GameStage) error {
 	if lastProgression == nil || stage == nil {
-		return apperror.ErrStageNotUnlocked
+		return apperror.ErrStageLocked
 	}
 
 	if lastProgression.StageID != stage.ID {
-		return apperror.ErrStageNotUnlocked
+		return apperror.ErrStageLocked
 	}
 
 	if lastProgression.IsComplete {

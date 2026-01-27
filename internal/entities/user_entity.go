@@ -45,11 +45,11 @@ type UserGameStageProgression struct {
 }
 
 type UserKitchenStageProgression struct {
-	ID               int64            `json:"id"`
-	UserID           int64            `json:"user_id"`
-	StageID          int64            `json:"stage_id"`
-	StationLevels    map[string]int64 `json:"station_levels"`
-	UnlockedStations []string         `json:"unlocked_stations"`
+	ID               int64                       `json:"id"`
+	UserID           int64                       `json:"user_id"`
+	StageID          int64                       `json:"stage_id"`
+	StationLevels    map[string]UserStationLevel `json:"station_levels"`
+	UnlockedStations []string                    `json:"unlocked_stations"`
 }
 
 type UserKitchenPhaseProgression struct {
@@ -66,6 +66,13 @@ type UserKitchenPhaseRewardClaim struct {
 	CurrentPhase    int64      `json:"current_phase"`
 	RewardID        int64      `json:"reward_id"`
 	ClaimedAt       *time.Time `json:"claimed_at"`
+}
+
+type UserStationLevel struct {
+	Level           int64   `json:"level"`
+	Cost            int64   `json:"cost"`
+	Profit          int64   `json:"profit"`
+	PreparationTime float64 `json:"preparation_time"`
 }
 
 func (u *User) ToCache() *UserCache {

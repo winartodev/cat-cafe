@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
+
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/helper"
-	"strings"
 )
 
 type KitchenStationRepository interface {
@@ -48,33 +47,22 @@ func (r *kitchenStationRepository) CreateKitchenStationsWithTxDB(ctx context.Con
 	}
 
 	numFields := 5
-	placeholderCount := 1
-	queryBuilder := strings.Builder{}
-	queryBuilder.WriteString(bulkInsertKitchenStationQuery)
+	queryString := r.BuildBulkInsertQuery(bulkInsertKitchenStationQuery, len(items), numFields, "RETURNING id")
 
 	args := make([]interface{}, 0, len(items)*numFields)
-	for i, item := range items {
-		if i > 0 {
-			queryBuilder.WriteString(", ")
-		}
+	now := helper.NowUTC()
 
-		queryBuilder.WriteString("(")
-		for j := 0; j < numFields; j++ {
-			queryBuilder.WriteString(fmt.Sprintf("$%d", placeholderCount))
-			if j < numFields-1 {
-				queryBuilder.WriteString(", ")
-			}
-			placeholderCount++
-		}
-		queryBuilder.WriteString(")")
-
-		now := helper.NowUTC()
-		args = append(args, item.StageID, item.FoodItemID, item.AutoUnlock, now, now)
+	for _, item := range items {
+		args = append(args,
+			item.StageID,
+			item.FoodItemID,
+			item.AutoUnlock,
+			now,
+			now,
+		)
 	}
 
-	queryBuilder.WriteString(" RETURNING id;")
-
-	rows, err := r.db.QueryContext(ctx, queryBuilder.String(), args...)
+	rows, err := r.db.QueryContext(ctx, queryString, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +99,9 @@ func (r *kitchenStationRepository) GetKitchenStationsDB(ctx context.Context, sta
 			&kitchenStation.AutoUnlock,
 			&foodItem.Slug,
 			&foodItem.Name,
-			&foodItem.StartingPrice,
-			&foodItem.StartingPreparation,
+			&foodItem.InitialProfit,
+			&foodItem.CookingTime,
+			&foodItem.InitialCost,
 		)
 		if err != nil {
 			return nil, err
@@ -149,8 +138,9 @@ func (r *kitchenStationRepository) GetKitchenStationByFoodIDDB(ctx context.Conte
 		&kitchenStation.AutoUnlock,
 		&foodItem.Slug,
 		&foodItem.Name,
-		&foodItem.StartingPrice,
-		&foodItem.StartingPreparation,
+		&foodItem.InitialProfit,
+		&foodItem.CookingTime,
+		&foodItem.InitialCost,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil

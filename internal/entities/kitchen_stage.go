@@ -9,10 +9,11 @@ type KitchenStation struct {
 	AutoUnlock bool  `json:"auto_unlock"`
 
 	// Additional field that didn't store into db
-	FoodItemSlug        string  `json:"food_item_slug"`
-	FoodName            string  `json:"food_name"`
-	StartingPrice       int64   `json:"starting_price"`
-	StartingPreparation float64 `json:"starting_preparation"`
+	FoodItemSlug  string  `json:"food_item_slug"`
+	FoodName      string  `json:"food_name"`
+	InitialCost   int64   `json:"initial_cost"`
+	InitialProfit int64   `json:"initial_profit"`
+	CookingTime   float64 `json:"cooking_time"`
 
 	FoodItem *FoodItem `json:"food_item,omitempty"`
 }

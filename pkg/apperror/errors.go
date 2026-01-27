@@ -3,9 +3,10 @@ package apperror
 import (
 	"errors"
 	"fmt"
-	"github.com/gofiber/fiber/v2"
 	"net/http"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 var (
@@ -24,6 +25,7 @@ var (
 	ErrAlreadyClaimed         = NewAppError("ALREADY_CLAIMED", "Daily reward already claimed today", http.StatusBadRequest)
 	ErrUnknownRewardType      = NewAppError("UNKNOWN_REWARD_TYPE", "Unknown reward type", http.StatusBadRequest)
 	ErrUserNotStartedGame     = NewAppError("USER_NOT_STARTED_GAME", "User has not started the game", http.StatusBadRequest)
+	ErrMissingKitchenConfig   = NewAppError("MISSING_KITCHEN_CONFIG", "Missing kitchen config", http.StatusBadRequest)
 
 	// --- 401 - UNAUTHORIZED ERRORS ---
 
@@ -37,7 +39,7 @@ var (
 
 	ErrAccessDenied       = NewAppError("ACCESS_DENIED", "You don't have permission to access this resource", http.StatusForbidden)
 	ErrStationNotUnlocked = NewAppError("STATION_NOT_UNLOCKED", "Station must be unlocked before upgrading", http.StatusForbidden)
-	ErrStageNotUnlocked   = NewAppError("STAGE_NOT_UNLOCKED", "Stage is locked", http.StatusForbidden)
+	ErrStageLocked        = NewAppError("STAGE_LOCKED", "Stage is locked", http.StatusForbidden)
 
 	// --- 404 - NOT FOUND ERRORS ---
 

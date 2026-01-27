@@ -5,11 +5,12 @@ const (
 		INSERT INTO food_items(
 		 	slug, 
 			name, 
-			starting_price, 
-			starting_preparation, 
+		   	initial_cost,
+			initial_profit, 
+			cooking_time, 
 			created_at,
 			updated_at              
-		) VALUES ($1, $2, $3, $4, $5, $6)
+		) VALUES ($1, $2, $3, $4, $5, $6,$7)
 		RETURNING id;
 	`
 
@@ -17,10 +18,11 @@ const (
 		UPDATE food_items 
 		SET 
 			name = $1, 
-			starting_price = $2, 
-			starting_preparation = $3,
-			updated_at = $4
-		WHERE id = $5
+			initial_profit = $2, 
+			cooking_time = $3,
+			initial_cost = $4,
+			updated_at = $5
+		WHERE id = $6
 		RETURNING id;
 	`
 
@@ -29,8 +31,9 @@ const (
 			id,
 			slug,
 			name,
-			starting_price,
-			starting_preparation
+			initial_cost,
+			initial_profit,
+			cooking_time
 		FROM food_items
 		ORDER BY id
 		LIMIT $1 OFFSET $2;
@@ -41,8 +44,9 @@ const (
 			id,
 			slug,
 			name,
-			starting_price,
-			starting_preparation
+			initial_cost,
+			initial_profit,
+			cooking_time
 		FROM food_items
 		WHERE slug = $1;
 	`
@@ -52,8 +56,9 @@ const (
 			id,
 			slug,
 			name,
-			starting_price,
-			starting_preparation
+			initial_cost,
+			initial_profit,
+			cooking_time
 		FROM food_items
 		WHERE id = $1;
 	`
@@ -61,5 +66,44 @@ const (
 	countFoodItemsQuery = `
 		SELECT COUNT(*) 
 		FROM food_items
+	`
+
+	insertFoodItemOverrideLevelQuery = `
+		INSERT INTO food_level_overrides(
+			food_item_id,
+			level,
+			cost,
+			profit,
+			preparation_time,
+			created_at,
+			updated_at
+		) VALUES 
+	`
+
+	deleteFoodItemOverrideLevelQuery = `
+		DELETE FROM food_level_overrides
+		WHERE food_item_id = $1
+	`
+
+	getOverrideLevelQuery = `
+		SELECT
+			food_item_id,
+			level,
+			cost,
+			profit,
+			preparation_time
+		FROM food_level_overrides
+		WHERE food_item_id = $1;
+	`
+
+	getOverrideLevelByFoodItemIDAndLevelQuery = `
+		SELECT
+			food_item_id,
+			level,
+			cost,
+			profit,
+			preparation_time
+		FROM food_level_overrides
+		WHERE food_item_id = $1 AND level = $2;
 	`
 )

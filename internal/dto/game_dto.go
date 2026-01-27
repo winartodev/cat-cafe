@@ -1,8 +1,9 @@
 package dto
 
 import (
-	"github.com/winartodev/cat-cafe/internal/entities"
 	"time"
+
+	"github.com/winartodev/cat-cafe/internal/entities"
 )
 
 type SyncBalanceRequest struct {

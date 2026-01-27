@@ -3,6 +3,9 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -17,6 +20,34 @@ type BaseRepository struct {
 	db    DbTx
 	pool  *sql.DB
 	redis *redis.Client
+}
+
+func (r *BaseRepository) BuildBulkInsertQuery(baseQuery string, numItems int, numFields int, returningClause string) string {
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(baseQuery)
+
+	placeholderCount := 1
+	for i := 0; i < numItems; i++ {
+		if i > 0 {
+			queryBuilder.WriteString(", ")
+		}
+		queryBuilder.WriteString("(")
+		for j := 0; j < numFields; j++ {
+			queryBuilder.WriteString(fmt.Sprintf("$%d", placeholderCount))
+			if j < numFields-1 {
+				queryBuilder.WriteString(", ")
+			}
+			placeholderCount++
+		}
+		queryBuilder.WriteString(")")
+	}
+
+	if returningClause != "" {
+		queryBuilder.WriteString(" " + returningClause)
+	}
+
+	queryBuilder.WriteString(";")
+	return queryBuilder.String()
 }
 
 type Repository struct {
