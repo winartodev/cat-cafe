@@ -1,5 +1,7 @@
 package entities
 
+import "fmt"
+
 type RewardTypeSlug string
 
 const (
@@ -7,6 +9,15 @@ const (
 	RewardTypeCoin      RewardTypeSlug = "COIN"
 	RewardTypeGem       RewardTypeSlug = "GEM"
 )
+
+func ToRewardType(s string) (RewardTypeSlug, error) {
+	switch RewardTypeSlug(s) {
+	case RewardTypeGoPayCoin, RewardTypeCoin, RewardTypeGem:
+		return RewardTypeSlug(s), nil
+	default:
+		return "", fmt.Errorf("invalid reward type: %s", s)
+	}
+}
 
 // IsValid checks if the reward type is valid
 func (e RewardTypeSlug) IsValid() bool {

@@ -9,21 +9,30 @@ import (
 )
 
 type Registerer interface {
-	Route(r fiber.Router, m middleware.Middleware) error
+	Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error
 }
 
-func register(api fiber.Router, m middleware.Middleware, items ...Registerer) error {
+func register(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router, items ...Registerer) error {
 	for _, item := range items {
-		if err := item.Route(api, m); err != nil {
+		if err := item.Route(open, userAuth, internalAuth); err != nil {
 			return fmt.Errorf("route registration failed: %w", err)
 		}
 	}
 	return nil
 }
 
-func SetupHandler(app *fiber.App, uc usecase.UseCase, m middleware.Middleware) {
-	dailyRewardHandler := NewDailyRewardHandler(
+func SetupHandler(app *fiber.App, uc usecase.UseCase, middleware middleware.Middleware) {
+	rewardHandler := NewRewardHandler(
+		uc.RewardUseCase,
 		uc.DailyRewardUseCase,
+	)
+
+	foodItemHandler := NewFoodItemHandler(
+		uc.FoodItemUseCase,
+	)
+
+	gameStageHandler := NewGameStageHandler(
+		uc.GameStageUseCase,
 	)
 
 	authHandler := NewAuthHandler(
@@ -32,14 +41,19 @@ func SetupHandler(app *fiber.App, uc usecase.UseCase, m middleware.Middleware) {
 
 	gameHandler := NewGameHandler(
 		uc.GameUseCase,
+		uc.DailyRewardUseCase,
 	)
 
 	api := app.Group("/api")
+	userAuth := api.Group("/v1", middleware.WithUserAuth())
+	internalAuth := api.Group("/internal")
 
-	if err := register(api, m,
-		dailyRewardHandler,
+	if err := register(api, userAuth, internalAuth,
+		rewardHandler,
+		foodItemHandler,
 		authHandler,
 		gameHandler,
+		gameStageHandler,
 	); err != nil {
 		panic(err)
 	}

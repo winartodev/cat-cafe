@@ -6,40 +6,80 @@ import (
 )
 
 type UseCase struct {
-	UserUseCase        UserUseCase
-	DailyRewardUseCase DailyRewardUseCase
-	AuthUseCase        AuthUseCase
-	GameUseCase        GameUseCase
+	UserUseCase            UserUseCase
+	UserProgressionUseCase UserProgressionUseCase
+	RewardUseCase          RewardUseCase
+	DailyRewardUseCase     DailyRewardUseCase
+	AuthUseCase            AuthUseCase
+	GameUseCase            GameUseCase
+	GameStageUseCase       GameStageUseCase
+	FoodItemUseCase        FoodItemUseCase
 }
 
 func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
+	userProgressionUC := NewUserProgressionUseCase(
+		repo.UserProgressionRepository,
+	)
+
 	userUC := NewUserUseCase(
 		repo.UserRepository,
-		repo.UserDailyRewardRepository,
+		userProgressionUC,
+	)
+
+	rewardUC := NewRewardUseCase(
+		repo.RewardRepository,
 	)
 
 	dailyRewardUC := NewDailyRewardUseCase(
 		repo.DailyRewardRepository,
-		repo.UserDailyRewardRepository,
+		repo.UserProgressionRepository,
 		repo.UserRepository,
 		userUC,
+		rewardUC,
 	)
 
-	authUC := NewAuthUseCase(
-		userUC,
-		repo.UserRepository,
-		jwt_,
+	foodItemUC := NewFoodItemUseCase(
+		repo.FoodItemRepository,
+	)
+
+	gameStageUC := NewGameStageUseCase(
+		repo.GameStageRepository,
+		repo.StageCustomerConfigRepository,
+		repo.StageStaffConfigRepository,
+		repo.StageKitchenConfigRepository,
+		repo.StageCameraConfigRepository,
+		repo.RewardRepository,
+		repo.KitchenStationRepository,
+		repo.FoodItemRepository,
 	)
 
 	gameUC := NewGameUseCase(
 		userUC,
+		userProgressionUC,
 		repo.UserRepository,
+		repo.UserProgressionRepository,
+		repo.GameStageRepository,
+		repo.FoodItemRepository,
+		repo.KitchenStationRepository,
+		repo.StageKitchenConfigRepository,
+		repo.RewardRepository,
+	)
+
+	authUC := NewAuthUseCase(
+		userUC,
+		gameUC,
+		repo.UserRepository,
+		jwt_,
 	)
 
 	return &UseCase{
-		UserUseCase:        userUC,
-		DailyRewardUseCase: dailyRewardUC,
-		AuthUseCase:        authUC,
-		GameUseCase:        gameUC,
+		UserUseCase:            userUC,
+		UserProgressionUseCase: userProgressionUC,
+		RewardUseCase:          rewardUC,
+		DailyRewardUseCase:     dailyRewardUC,
+		AuthUseCase:            authUC,
+		GameUseCase:            gameUC,
+		GameStageUseCase:       gameStageUC,
+		FoodItemUseCase:        foodItemUC,
 	}
 }

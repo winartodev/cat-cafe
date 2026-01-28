@@ -16,6 +16,19 @@ migrate-down:
 migrate-force:
 	migrate -path db/migrations -database "$(DB_URL)" force $(v)
 
+seed-create:
+	migrate create -ext sql -dir db/seeds $(name)
+
+seed-up:
+	@echo "Running seeds using separate table..."
+	migrate -path db/seeds -database "$(DB_URL)&x-migrations-table=seed_migrations" -verbose up
+
+seed-down:
+	migrate -path db/seeds -database "$(DB_URL)&x-migrations-table=seed_migrations" -verbose down 1
+
+seed-force:
+	migrate -path db/seeds -database "$(DB_URL)&x-migrations-table=seed_migrations" force $(v)
+
 #--------------------------
 
 # ----- HOT RELOAD -----

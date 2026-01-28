@@ -1,78 +1,88 @@
 package repositories
 
 const (
-	rewardTypeInsertQuery = `
-        INSERT INTO reward_types (slug, name, created_at, updated_at) 
-        VALUES ($1, $2, $3, $4) 
-        RETURNING id`
-
-	getRewardTypesQuery = `
-        SELECT id, slug, name FROM reward_types ORDER BY id
-        `
-
-	getRewardTypeByIDQuery = `
-        SELECT id, slug, name FROM reward_types WHERE id=$1
-        `
-
-	getRewardTypeBySlugQuery = `
-        SELECT id, slug, name FROM reward_types WHERE slug=$1
-        `
-
-	updateRewardTypeQuery = `
-        UPDATE reward_types SET name = $1, updated_at = $2 WHERE id = $3
-        `
-
 	insertDailyRewardQuery = `
         INSERT INTO daily_rewards 
 		(
-			 reward_type_id,
-			 day_number,
-			 reward_amount, 
+			 reward_id,
+			 day_number, 
 			 is_active,
 			 description,
 			 created_at,
 			 updated_at
 		 )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id`
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+	`
 
 	getDailyRewardsQuery = `
         SELECT
                 dr.id,
-                dr.reward_type_id,
-                rt.slug,
-                rt.name,
+                dr.reward_id,
                 dr.day_number,
-                dr.reward_amount,
+                r.slug,
+                r.name,
+                r.amount,
+                r.is_active,
                 dr.is_active,
-                dr.description
+                dr.description,
+                rt.slug as reward_type_slug,
+                rt.name as reward_type_name
         FROM daily_rewards AS dr
-        JOIN reward_types AS rt on dr.reward_type_id = rt.id  order by dr.id
+       		JOIN rewards AS r on r.id = dr.reward_id
+        	JOIN reward_types AS rt on r.reward_type_id = rt.id
+        order by dr.id
+	`
+
+	getDailyRewardsWithPaginationQuery = `
+		SELECT
+			dr.id,
+			dr.reward_id,
+			dr.day_number,
+			r.slug,
+			r.name,
+			r.amount,
+			r.is_active,
+			dr.is_active,
+			dr.description,
+			rt.slug as reward_type_slug,
+			rt.name as reward_type_name
+		FROM daily_rewards AS dr
+			JOIN rewards AS r ON r.id = dr.reward_id
+			JOIN reward_types AS rt ON r.reward_type_id = rt.id
+		ORDER BY dr.id
+		LIMIT $1 OFFSET $2
+	`
+
+	countDailyRewardsQuery = `
+		SELECT COUNT(*) 
+		FROM daily_rewards
 	`
 
 	getDailyRewardByIDQuery = `
 		SELECT
                 dr.id,
-                dr.reward_type_id,
+                dr.reward_id,
                 rt.slug,
                 rt.name,
                 dr.day_number,
-                dr.reward_amount,
+                r.amount,
                 dr.is_active,
                 dr.description
-        FROM daily_rewards AS dr
-        JOIN reward_types AS rt on dr.reward_type_id = rt.id WHERE dr.id = $1 
+		FROM daily_rewards AS dr
+       		JOIN rewards AS r on r.id = dr.reward_id
+        	JOIN reward_types AS rt on r.reward_type_id = rt.id 
+		WHERE dr.id = $1 
 	`
 
 	updateDailyRewardQuery = `
 		UPDATE daily_rewards
 		SET
-			reward_type_id = $1,
+			reward_id = $1,
 			day_number = $2,
-			reward_amount = $3,
-			is_active = $4,
-			description = $5,
-			updated_at = $6
-		WHERE id = $7
+			is_active = $3,
+			description = $4,
+			updated_at = $5
+		WHERE id = $6
 	`
 )
