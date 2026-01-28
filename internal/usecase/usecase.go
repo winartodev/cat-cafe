@@ -19,6 +19,7 @@ type UseCase struct {
 func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 	userProgressionUC := NewUserProgressionUseCase(
 		repo.UserProgressionRepository,
+		repo.FoodItemRepository,
 	)
 
 	userUC := NewUserUseCase(

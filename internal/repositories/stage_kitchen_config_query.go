@@ -69,4 +69,18 @@ const (
 		FROM kitchen_phase_completion_rewards
 		WHERE kitchen_config_id = $1
 	`
+
+	getKitchenPhaseCompletionRewardByPhaseNumberQuery = `
+		SELECT kpcw.kitchen_config_id,
+			kpcw.phase_number,
+			kpcw.reward_id,
+			rw.slug,
+			rw.name,
+			rw.amount,
+			rt.slug
+		FROM kitchen_phase_completion_rewards kpcw
+				JOIN rewards rw ON kpcw.reward_id = rw.id
+				JOIN reward_types rt ON rw.reward_type_id = rt.id
+		WHERE kpcw.kitchen_config_id = $1 AND kpcw.phase_number = $2
+	`
 )

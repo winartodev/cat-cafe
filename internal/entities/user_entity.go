@@ -50,6 +50,7 @@ type UserKitchenStageProgression struct {
 	StageID          int64                       `json:"stage_id"`
 	StationLevels    map[string]UserStationLevel `json:"station_levels"`
 	UnlockedStations []string                    `json:"unlocked_stations"`
+	NextLevelStats   map[string]UserStationLevel `json:"next_level_stats,omitempty"` // Calculated, not stored in DB
 }
 
 type UserKitchenPhaseProgression struct {
@@ -73,6 +74,8 @@ type UserStationLevel struct {
 	Cost            int64   `json:"cost"`
 	Profit          int64   `json:"profit"`
 	PreparationTime float64 `json:"preparation_time"`
+
+	Reward *Reward `json:"reward,omitempty"`
 }
 
 func (u *User) ToCache() *UserCache {

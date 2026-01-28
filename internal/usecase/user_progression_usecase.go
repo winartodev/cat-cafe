@@ -17,11 +17,13 @@ type UserProgressionUseCase interface {
 
 type userProgressionUseCase struct {
 	userProgressionRepo repositories.UserProgressionRepository
+	foodItemRepo        repositories.FoodItemRepository
 }
 
-func NewUserProgressionUseCase(userProgressionRepo repositories.UserProgressionRepository) UserProgressionUseCase {
+func NewUserProgressionUseCase(userProgressionRepo repositories.UserProgressionRepository, foodItemRepo repositories.FoodItemRepository) UserProgressionUseCase {
 	return &userProgressionUseCase{
 		userProgressionRepo: userProgressionRepo,
+		foodItemRepo:        foodItemRepo,
 	}
 }
 
@@ -73,12 +75,35 @@ func (u *userProgressionUseCase) getOrCreateKitchenProgress(
 
 	for _, station := range gameConfig.KitchenStations {
 		if station.AutoUnlock {
-			stationLevels[station.FoodItemSlug] = entities.UserStationLevel{
+			// Get Food Item for override check
+			foodItem, err := u.foodItemRepo.GetFoodBySlugDB(ctx, station.FoodItemSlug)
+			if err != nil {
+				return nil, err
+			}
+
+			// Base stats for Level 1
+			level1 := entities.UserStationLevel{
 				Level:           1,
 				Cost:            station.InitialCost,
 				Profit:          station.InitialProfit,
 				PreparationTime: station.CookingTime,
 			}
+
+			// Check override for level 1
+			override, err := u.foodItemRepo.GetOverrideLevelByFoodItemIDAndLevelDB(ctx, foodItem.ID, 1)
+			if err != nil {
+				return nil, err
+			}
+			if override != nil {
+				level1 = entities.UserStationLevel{
+					Level:           override.Level,
+					Cost:            override.Cost,
+					Profit:          override.Profit,
+					PreparationTime: override.PreparationTime,
+				}
+			}
+
+			stationLevels[station.FoodItemSlug] = level1
 			unlockedStations = append(unlockedStations, station.FoodItemSlug)
 		} else {
 			stationLevels[station.FoodItemSlug] = entities.UserStationLevel{

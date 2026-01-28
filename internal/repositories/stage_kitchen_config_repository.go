@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
+
 	"github.com/lib/pq"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
@@ -17,6 +19,7 @@ type StageKitchenConfigRepository interface {
 	GetKitchenConfigByStageIDDB(ctx context.Context, stageID int64) (res *entities.StageKitchenConfig, err error)
 
 	GetKitchenCompletionRewardsDB(ctx context.Context, kitchenConfigID int64) (data []entities.KitchenPhaseCompletionRewards, err error)
+	GetKitchenCompletionRewardByPhaseNumberDB(ctx context.Context, kitchenConfigID int64, phaseNumber int64) (data *entities.KitchenPhaseCompletionRewards, err error)
 	CreateKitchenCompletionRewardDB(ctx context.Context, kitchenConfigID int64, data *entities.KitchenPhaseCompletionRewards) (id *int64, err error)
 	DeleteKitchenCompletionRewardDB(ctx context.Context, kitchenConfigID int64) error
 }
@@ -163,4 +166,30 @@ func (r *stageKitchenConfigRepository) GetKitchenCompletionRewardsDB(ctx context
 	}
 
 	return res, nil
+}
+
+func (r *stageKitchenConfigRepository) GetKitchenCompletionRewardByPhaseNumberDB(ctx context.Context, kitchenConfigID int64, phaseNumber int64) (res *entities.KitchenPhaseCompletionRewards, err error) {
+	var data entities.KitchenPhaseCompletionRewards
+	var reward entities.Reward
+	var rewardType entities.RewardType
+
+	err = r.db.QueryRowContext(ctx, getKitchenPhaseCompletionRewardByPhaseNumberQuery, kitchenConfigID, phaseNumber).Scan(
+		&data.KitchenConfigID,
+		&data.PhaseNumber,
+		&data.RewardID,
+		&reward.Slug,
+		&reward.Name,
+		&reward.Amount,
+		&rewardType.Slug,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	data.Reward = &reward
+	data.Reward.RewardType = &rewardType
+
+	return &data, nil
 }

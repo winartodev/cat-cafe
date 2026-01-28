@@ -28,15 +28,25 @@ type UserNextGameStageInfo struct {
 }
 
 type UpgradeKitchenStation struct {
-	NewLevel       int64 `json:"new_level"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+
 	IsMaxLevel     bool  `json:"is_max_level"`
 	NewCoinBalance int64 `json:"new_coin_balance"`
 	CoinsSpent     int64 `json:"coins_spent"`
 
 	// Current values
-	CurrentProfit   int64   `json:"current_profit"`
-	CurrentPrepTime float64 `json:"current_prep_time"`
-	ProfitPerSecond float64 `json:"profit_per_second"`
+	CurrentLevel      int64            `json:"current_level"`
+	CurrentProfit     int64            `json:"current_profit"`
+	CurrentPrepTime   float64          `json:"current_prep_time"`
+	ProfitPerSecond   float64          `json:"profit_per_second"`
+	CurrentTableCount int64            `json:"current_table_count"`
+	CurrentRewards    *PhaseRewardInfo `json:"current_reward"`
+
+	// Next values
+	NextLevel  int64 `json:"next_level"`
+	NextCost   int64 `json:"next_cost"`
+	NextProfit int64 `json:"next_profit"`
 
 	// Phase info
 	PhaseTransitioned      bool    `json:"phase_transitioned"`
@@ -45,18 +55,27 @@ type UpgradeKitchenStation struct {
 	CurrentPhaseLastLevel  int64   `json:"current_phase_last_level"`
 	PhaseProfitMultiplier  float64 `json:"phase_profit_multiplier"`
 
+	CompletedPhase int `json:"completed_phase"`
+
 	// Table count
 	NewTableCount int64 `json:"new_table_count,omitempty"`
 
 	// Rewards
-	PhaseRewards    []PhaseRewardInfo `json:"phase_rewards,omitempty"`
-	AllPhaseRewards []PhaseRewardInfo `json:"all_phase_rewards,omitempty"`
+	GrantedRewards []PhaseRewardInfo `json:"granted_rewards,omitempty"`
 }
 
 type UnlockKitchenStation struct {
-	UnlockedSlug   string `json:"unlocked_slug"`
-	NewCoinBalance int64  `json:"new_coin_balance"`
-	CoinsSpent     int64  `json:"coins_spent"`
-	StationName    string `json:"station_name"`
-	StationLevel   int64  `json:"station_level"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+
+	CurrentLevel      int64            `json:"current_level"`
+	CurrentProfit     int64            `json:"current_profit"`
+	CurrentPrepTime   float64          `json:"current_prep_time"`
+	ProfitPerSecond   float64          `json:"profit_per_second"`
+	CurrentTableCount int64            `json:"current_table_count"`
+	CurrentRewards    *PhaseRewardInfo `json:"current_reward"`
+
+	NextLevel  int64 `json:"next_level"`
+	NextCost   int64 `json:"next_cost"`
+	NextProfit int64 `json:"next_profit"`
 }

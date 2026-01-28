@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
 )
@@ -260,13 +261,13 @@ func (u *gameStageUseCase) createKitchenCompleteReward(ctx context.Context, tx *
 	kitchenConfigRepo := u.kitchenConfigRepo.WithTx(tx)
 	rewardRepo := u.rewardRepo.WithTx(tx)
 	for _, phaseReward := range phaseRewards {
-		reward, err := rewardRepo.GetRewardBySlugDB(ctx, phaseReward.RewardSlug)
+		reward, err := rewardRepo.GetRewardBySlugDB(ctx, phaseReward.Reward.Slug)
 		if err != nil {
 			return err
 		}
 
 		if reward == nil {
-			return fmt.Errorf("reward %s not exist", phaseReward.RewardSlug)
+			return fmt.Errorf("reward %s not exist", phaseReward.Reward.Slug)
 		}
 
 		phaseReward.RewardID = reward.ID

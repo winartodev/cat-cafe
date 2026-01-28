@@ -2,6 +2,7 @@ package dto
 
 import (
 	"errors"
+
 	"github.com/winartodev/cat-cafe/internal/entities"
 )
 
@@ -225,7 +226,9 @@ func (d *BaseGameStageRequest) toEntitiesCommon() (*entities.GameStageConfig, er
 		for _, slug := range phaseData.RewardSlugs {
 			rewardEntry := entities.KitchenPhaseCompletionRewards{
 				PhaseNumber: phaseData.PhaseNumber,
-				RewardSlug:  slug,
+				Reward: &entities.Reward{
+					Slug: slug,
+				},
 			}
 			kitchenPhaseRewards = append(kitchenPhaseRewards, rewardEntry)
 		}
