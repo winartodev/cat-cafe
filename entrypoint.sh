@@ -52,6 +52,31 @@ else
     exit 1
 fi
 
+# Run seeding
+echo "------------------------------------------"
+echo "Running database seeding..."
+
+SEED_PATH="/app/db/seeds"
+
+# Check if seeds folder exists
+if [ ! -d "$SEED_PATH" ]; then
+    echo "✗ Seeds folder $SEED_PATH not found!"
+    ls -la /app/
+    exit 1
+fi
+
+echo ""
+
+# Run seeding with absolute path
+migrate -path=$SEED_PATH -database="$DB_URL&x-migrations-table=seed_migrations" -verbose up
+
+if [ $? -eq 0 ]; then
+    echo "✓ Seeding completed successfully"
+else
+    echo "✗ Seeding failed"
+    exit 1
+fi
+
 echo "------------------------------------------"
 echo ""
 
