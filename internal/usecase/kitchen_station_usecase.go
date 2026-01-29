@@ -83,13 +83,11 @@ func (g *gameUseCase) gatherUnlockData(ctx context.Context, userID int64, slug s
 	}
 
 	// Get latest progression
-	latestProgression, err := g.userProgressionRepo.GetLatestGameStageProgressionDB(ctx, userID)
+	latestProgression, err := g.userProgressionUseCase.LatestStageProgression(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if latestProgression == nil {
-		return nil, apperror.ErrRecordNotFound
-	}
+
 	uctx.stageID = latestProgression.StageID
 
 	// Get food item
@@ -124,7 +122,7 @@ func (g *gameUseCase) gatherUnlockData(ctx context.Context, userID int64, slug s
 	}
 
 	// Get user balance
-	uctx.userBalance, err = g.userRepo.GetUserBalanceByIDDB(ctx, userID)
+	uctx.userBalance, err = g.userUseCase.GetUserBalance(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,13 +140,11 @@ func (g *gameUseCase) gatherUpgradeData(ctx context.Context, userID int64, slug 
 	}
 
 	// Get latest progression
-	latestProgression, err := g.userProgressionRepo.GetLatestGameStageProgressionDB(ctx, userID)
+	latestProgression, err := g.userProgressionUseCase.LatestStageProgression(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if latestProgression == nil {
-		return nil, apperror.ErrRecordNotFound
-	}
+
 	upgradeContext.stageID = latestProgression.StageID
 
 	// Get food item
@@ -188,12 +184,9 @@ func (g *gameUseCase) gatherUpgradeData(ctx context.Context, userID int64, slug 
 	}
 
 	// Get user balance
-	upgradeContext.userBalance, err = g.userRepo.GetUserBalanceByIDDB(ctx, userID)
+	upgradeContext.userBalance, err = g.userUseCase.GetUserBalance(ctx, userID)
 	if err != nil {
 		return nil, err
-	}
-	if upgradeContext.userBalance == nil {
-		return nil, apperror.ErrRecordNotFound
 	}
 
 	return upgradeContext, nil
@@ -309,6 +302,9 @@ func (g *gameUseCase) calculateUpgradeMetrics(upgradeContext *upgradeContext, is
 	result.currentPhaseInfo = g.calculatePhaseInfo(upgradeContext.currentStation.Level, upgradeContext.kitchenConfig)
 	result.nextPhaseInfo = g.calculatePhaseInfo(upgradeContext.nextStation.Level, upgradeContext.kitchenConfig)
 
+	var reduceTimeMultiplier = g.getReduceCookingTimeMultiplier(upgradeContext.userProgress, upgradeContext.slug)
+	var profitMultiplier = g.getProfitMultiplier(upgradeContext.userProgress, upgradeContext.slug)
+
 	if !isOverrideCurrentLevel {
 		result.upgradeCost = g.calculateUpgradeCost(
 			upgradeContext.previousStation.Cost,
@@ -322,12 +318,12 @@ func (g *gameUseCase) calculateUpgradeMetrics(upgradeContext *upgradeContext, is
 			upgradeContext.previousStation.Level,
 			upgradeContext.kitchenConfig,
 			result.currentPhaseInfo.CurrentPhase,
-			0,
+			profitMultiplier,
 		)
 
 		result.preparationTime = g.calculateCurrentProcessTime(
 			upgradeContext.previousStation.PreparationTime,
-			1, 1,
+			reduceTimeMultiplier,
 		)
 	} else {
 		result.upgradeCost = upgradeContext.currentStation.Cost
@@ -348,7 +344,7 @@ func (g *gameUseCase) calculateUpgradeMetrics(upgradeContext *upgradeContext, is
 			upgradeContext.currentStation.Level,
 			upgradeContext.kitchenConfig,
 			result.nextPhaseInfo.CurrentPhase,
-			0,
+			profitMultiplier,
 		)
 	} else {
 		result.nextUpgradeCost = upgradeContext.nextStation.Cost
@@ -359,6 +355,30 @@ func (g *gameUseCase) calculateUpgradeMetrics(upgradeContext *upgradeContext, is
 	result.phaseTransitioned = result.currentPhaseInfo.CurrentPhase > result.oldPhaseInfo.CurrentPhase
 
 	return result
+}
+
+func (g *gameUseCase) getReduceCookingTimeMultiplier(progress *entities.UserKitchenStageProgression, slug string) float64 {
+	if progress == nil || progress.StationUpgrades == nil {
+		return 1.0
+	}
+
+	if upgrade, exists := progress.StationUpgrades[slug]; exists && upgrade.ReduceCookingTime > 0 {
+		return upgrade.ReduceCookingTime
+	}
+
+	return 1.0
+}
+
+func (g *gameUseCase) getProfitMultiplier(progress *entities.UserKitchenStageProgression, slug string) float64 {
+	if progress == nil || progress.StationUpgrades == nil {
+		return 0
+	}
+
+	if upgrade, exists := progress.StationUpgrades[slug]; exists && upgrade.ProfitBonus > 0 {
+		return upgrade.ProfitBonus
+	}
+
+	return 0
 }
 
 // calculateUpgradeCost: basePrice * (upgradeCostMultiply/100)^(level-1) * phaseMultiplier
@@ -408,9 +428,9 @@ func (g *gameUseCase) calculateProfit(
 	return int64(math.Ceil(profit))
 }
 
-// calculateCurrentProcessTime = baseTime - (baseTime × permanentReduction) + (baseTime × temporaryModifier)
-func (g *gameUseCase) calculateCurrentProcessTime(baseProcessTime float64, reduceTimeMultiply float64, bonusReduceTime float64) float64 {
-	processTime := baseProcessTime - (baseProcessTime * reduceTimeMultiply) + (baseProcessTime * bonusReduceTime)
+// calculateCurrentProcessTime = baseProcessTime * (1 - reduceTimeMultiply)
+func (g *gameUseCase) calculateCurrentProcessTime(baseProcessTime float64, reduceTimeMultiply float64) float64 {
+	processTime := baseProcessTime * (1 - reduceTimeMultiply)
 
 	if processTime < 0.1 {
 		processTime = 0.1 // Minimum process time
@@ -890,15 +910,6 @@ func (g *gameUseCase) collectAllRemainingPhaseRewards(
 	}
 
 	return rewardInfos, nil
-}
-
-func (g *gameUseCase) logUnlockDetails(unlockContext *unlockContext, result *unlockResult) {
-	fmt.Println("==================================================")
-	fmt.Printf("UNLOCK SUCCESS: %s\n", unlockContext.slug)
-	fmt.Printf("Cost      : %d Coins\n", result.unlockCost)
-	fmt.Printf("Balance   : %d -> %d\n", unlockContext.userBalance.Coin, result.newCoinBalance)
-	fmt.Printf("Total Unlocked Stations: %d\n", len(unlockContext.userProgress.UnlockedStations)+1)
-	fmt.Println("==================================================")
 }
 
 func (g *gameUseCase) buildUnlockResponse(unlockContext *unlockContext, result *unlockResult) *entities.UnlockKitchenStation {

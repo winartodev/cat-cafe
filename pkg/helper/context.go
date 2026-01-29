@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"github.com/gofiber/fiber/v2"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
 )
 
 const (
@@ -33,7 +34,7 @@ func GetToken(c *fiber.Ctx) string {
 func GetUserIDFromContext(ctx context.Context) (int64, error) {
 	userID, ok := ctx.Value(ContextUserIDKey).(int64)
 	if !ok || userID <= 0 {
-		return 0, nil
+		return 0, apperror.ErrBadRequest
 	}
 	return userID, nil
 }

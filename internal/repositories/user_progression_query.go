@@ -20,10 +20,11 @@ const (
 			user_id,
 			stage_id,
 			is_complete,
-			completed_at
+			completed_at,
+			last_started_at
 		FROM user_stage_progress
 		WHERE user_id = $1
-		ORDER BY id DESC
+		ORDER BY last_started_at DESC
     	LIMIT 1;
 	`
 
@@ -58,7 +59,8 @@ const (
 			user_id,
 			stage_id,
 			station_levels,
-			unlocked_stations
+			unlocked_stations,
+			station_upgrades
 		FROM user_kitchen_progress
 		WHERE user_id = $1 and stage_id =$2
 	`
@@ -68,8 +70,9 @@ const (
         	user_id, 
 	 	    stage_id,
 	 	    station_levels,
-	 	    unlocked_stations
-	 	) VALUES ($1, $2, $3, $4)
+	 	    unlocked_stations,
+	 		station_upgrades
+	 	) VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (user_id, stage_id) DO NOTHING
 	`
 
@@ -131,5 +134,66 @@ const (
 		 	phase_number,
 		 	claimed_at
 		) VALUES ($1, $2, $3, $4,$5)
+	`
+
+	markStageAsStartedQuery = `
+		UPDATE user_stage_progress 
+			SET 
+			    last_started_at = $1
+		WHERE user_id = $2 AND stage_id = $3
+	`
+
+	insertUserUpgradeStageProgressionQuery = `
+		INSERT INTO user_stage_upgrades (
+		user_id,
+		game_stage_id,
+		game_stage_upgrade_id,
+		purchased_at,
+		created_at,
+		updated_at
+		) VALUES (
+		        $1, $2, $3, $4, $5, $6  
+		)
+	`
+
+	updateStationUpgradeQuery = `
+		UPDATE user_kitchen_progress  
+			SET station_upgrades = $1,
+			    updated_at = $2
+		WHERE user_id = $3 AND stage_id = $4
+	`
+
+	stageUpgradeAlreadyPurchaseQuery = `
+		SELECT
+		    usu.id,
+			u.slug, u.name, u.cost, 
+			u.cost_type, u.effect_type, u.effect_value, 
+			u.effect_unit, u.effect_target, u.effect_target_id, 
+			COALESCE(fi.slug, '') AS effect_target_name
+		FROM user_stage_upgrades usu
+		JOIN game_stage_upgrades gsu on usu.game_stage_upgrade_id = gsu.id
+		JOIN upgrades u ON gsu.upgrade_id = u.id
+			LEFT JOIN food_items fi ON fi.id = u.effect_target_id AND u.effect_target = 'food'
+		where usu.user_id = $1 AND usu.game_stage_id = $2
+	`
+
+	currentStageUpgradeQuery = `
+		SELECT
+			u.slug, u.name,  u.description, u.cost, 
+			u.cost_type, u.effect_type, u.effect_value, 
+			u.effect_unit, u.effect_target, u.effect_target_id,
+			COALESCE(fi.slug, '') AS effect_target_name,
+			CASE
+				WHEN usp.id IS NULL THEN false
+				ELSE true
+			END AS is_purchased,
+			usp.purchased_at
+		FROM game_stage_upgrades gsu
+		JOIN upgrades u ON gsu.upgrade_id = u.id
+		    LEFT JOIN food_items fi ON fi.id = u.effect_target_id AND u.effect_target = 'food'
+		LEFT JOIN user_stage_upgrades usp ON usp.game_stage_upgrade_id = gsu.id                        
+			AND usp.user_id = $1
+		WHERE gsu.game_stage_id = $2
+		ORDER BY is_purchased, u.sequence;
 	`
 )

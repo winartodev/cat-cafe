@@ -29,6 +29,20 @@ type UserGameStageResponse struct {
 	Stages          []UserGameStage `json:"stages"`
 }
 
+type UserStageUpgradeResponse struct {
+	Slug        string                   `json:"slug"`
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
+	Cost        int64                    `json:"cost"`
+	CostType    entities.UpgradeCostType `json:"cost_type"`
+
+	IsPurchased bool `json:"is_purchased"`
+}
+
+type UserPurchasedStageUpgradeResponse struct {
+	UpgradeEffectDTO `json:"upgrade_effect"`
+}
+
 type UserDetailGameStageResponse struct {
 	Slug         string `json:"slug"`
 	Name         string `json:"name"`
@@ -165,7 +179,7 @@ func ToUserGameStageResponses(data []entities.UserGameStage) *UserGameStageRespo
 	var stages []UserGameStage
 	var currentStageIdx int
 	for i, v := range data {
-		if v.Status == entities.GSStatusCurrent {
+		if v.Status == entities.GSStatusAvailable {
 			currentStageIdx = i
 		}
 		stages = append(stages, *ToUserGameStageResponse(&v))
@@ -182,6 +196,10 @@ func ToUserDetailGameStageResponse(
 	config *entities.GameStageConfig,
 	nextStage *entities.UserNextGameStageInfo,
 ) *UserDetailGameStageResponse {
+	if data == nil || config == nil {
+		return nil
+	}
+
 	return &UserDetailGameStageResponse{
 		Slug:            data.Slug,
 		Name:            data.Name,
@@ -196,5 +214,42 @@ func ToUserDetailGameStageResponse(
 		Kitchen:         toKitchenConfigDTO(config.KitchenConfig, config.KitchenPhaseReward),
 		Camera:          toCameraConfigDTO(config.CameraConfig),
 		NextStage:       nextStage,
+	}
+}
+
+func ToUserStageUpgradesResponse(items []entities.UserStageUpgrade) []UserStageUpgradeResponse {
+	if items == nil || len(items) == 0 {
+		return nil
+	}
+
+	var data []UserStageUpgradeResponse
+	for _, item := range items {
+		upgrade := item.Upgrade
+		data = append(data, UserStageUpgradeResponse{
+			Slug:        upgrade.Slug,
+			Name:        upgrade.Name,
+			Description: upgrade.Description,
+			Cost:        upgrade.Cost,
+			CostType:    upgrade.CostType,
+			IsPurchased: item.IsPurchased,
+		})
+	}
+
+	return data
+}
+
+func ToUserPurchasedStageUpgradeResponse(data *entities.Upgrade) *UserPurchasedStageUpgradeResponse {
+	if data == nil {
+		return nil
+	}
+
+	return &UserPurchasedStageUpgradeResponse{
+		UpgradeEffectDTO{
+			Type:       data.Effect.Type,
+			Value:      data.Effect.Value,
+			Unit:       data.Effect.Unit,
+			Target:     data.Effect.Target,
+			TargetName: data.Effect.TargetName,
+		},
 	}
 }

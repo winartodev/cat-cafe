@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,6 +22,7 @@ var (
 
 	// Game Domain - Business Logic Errors
 	ErrInsufficientCoins      = NewAppError("INSUFFICIENT_COINS", "Insufficient coins to complete this action", http.StatusBadRequest)
+	ErrInsufficientGems       = NewAppError("INSUFFICIENT_COINS", "Insufficient gems to complete this action", http.StatusBadRequest)
 	ErrStationAlreadyUnlocked = NewAppError("STATION_ALREADY_UNLOCKED", "Station is already unlocked", http.StatusBadRequest)
 	ErrAlreadyClaimed         = NewAppError("ALREADY_CLAIMED", "Daily reward already claimed today", http.StatusBadRequest)
 	ErrUnknownRewardType      = NewAppError("UNKNOWN_REWARD_TYPE", "Unknown reward type", http.StatusBadRequest)
@@ -48,7 +50,9 @@ var (
 	ErrStationNotFound  = NewAppError("STATION_NOT_FOUND", "Kitchen station not found", http.StatusNotFound)
 	ErrFoodItemNotFound = NewAppError("FOOD_ITEM_NOT_FOUND", "Food item not found", http.StatusNotFound)
 	ErrStageNotFound    = NewAppError("STAGE_NOT_FOUND", "Game stage not found", http.StatusNotFound)
-
+	ErrUpgradeNotFound  = NewAppError("UPGRADE_NOT_FOUND", "Upgrade not found", http.StatusNotFound)
+	ErrStageNotStarted  = NewAppError("STAGE_NOT_STARTED", "Stage not started", http.StatusNotFound)
+	
 	// --- 409 - CONFLICT ERRORS ---
 
 	ErrConflict              = NewAppError("CONFLICT", "Resource already exists in the system", http.StatusConflict)
@@ -66,6 +70,26 @@ var (
 	ErrFailedRetrieveID  = NewAppError("FAILED_RETRIEVE_ID", "Failed to retrieve last inserted ID", http.StatusInternalServerError)
 	ErrRequiredActiveTx  = NewAppError("REQUIRED_ACTIVE_TX", "This method requires an active transaction", http.StatusInternalServerError)
 )
+
+func ErrorNotFound(args ...string) *AppError {
+	return NewAppError("NOT_FOUND", "Resource not found "+strings.Join(args, " "), http.StatusNotFound)
+}
+
+func ErrorInvalidRequest(args ...string) *AppError {
+	return NewAppError("BAD_REQUEST", "Invalid request "+strings.Join(args, " "), http.StatusBadRequest)
+}
+
+func ErrorAlreadyExists(resource, field, value string) *AppError {
+	return NewAppError(
+		"ALREADY_EXISTS",
+		fmt.Sprintf("%s with %s '%s' already exists", resource, field, value),
+		http.StatusConflict,
+	)
+}
+
+func ErrorInvalidParam(args ...string) *AppError {
+	return NewAppError("INVALID_PARAM", "Invalid parameter "+strings.Join(args, " "), http.StatusBadRequest)
+}
 
 // AppError represents a structured application error
 type AppError struct {
@@ -91,6 +115,10 @@ func (e *AppError) Error() string {
 		return fmt.Sprintf("%s: %v", e.Message, e.Err)
 	}
 	return e.Message
+}
+
+func (e *AppError) GetCode() string {
+	return e.Code
 }
 
 // WithDetails adds additional details to the error

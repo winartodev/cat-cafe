@@ -32,14 +32,11 @@ func (h *GameHandler) SyncBalance(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
-	ctx := c.Context()
 
-	userID, _ := helper.GetUserIDFromContext(ctx)
-	if userID <= 0 {
-		return response.FailedResponse(c, h.errorHandler, apperror.ErrUnauthorized)
-	}
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
-	res, err := h.GameUseCase.UpdateUserBalance(ctx, req.CoinsEarned, userID)
+	res, err := h.GameUseCase.UpdateUserBalance(ctx, req.CoinsEarned)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
@@ -75,16 +72,28 @@ func (h *GameHandler) ClaimReward(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Claimed Successfully", dto.ToClaimDailyRewardResponse(reward, newBalance), nil)
 }
 
-func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
+func (h *GameHandler) GetAllStages(c *fiber.Ctx) error {
 	userID := helper.GetUserID(c)
 	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
-	stages, _, err := h.GameUseCase.GetGameStages(ctx, userID)
+	stages, _, err := h.GameUseCase.GetGameStages(ctx)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Current Stage Successfully Retrieved", dto.ToUserGameStageResponses(stages), nil)
+}
+
+func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
+
+	gameStage, config, nextStage, err := h.GameUseCase.GetCurrentGameStage(ctx)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Current Stage Successfully Retrieved", dto.ToUserDetailGameStageResponse(gameStage, config, nextStage), nil)
 }
 
 func (h *GameHandler) StartGameStage(c *fiber.Ctx) error {
@@ -94,8 +103,9 @@ func (h *GameHandler) StartGameStage(c *fiber.Ctx) error {
 	}
 
 	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
-	gameStage, config, nextStage, err := h.GameUseCase.StartGameStage(c.Context(), userID, slug)
+	gameStage, config, nextStage, err := h.GameUseCase.StartGameStage(ctx, slug)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
@@ -110,8 +120,9 @@ func (h *GameHandler) CompleteGameStage(c *fiber.Ctx) error {
 	}
 
 	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
-	err = h.GameUseCase.CompleteGameStage(c.Context(), userID, slug)
+	err = h.GameUseCase.CompleteGameStage(ctx, slug)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
@@ -126,8 +137,9 @@ func (h *GameHandler) UpgradeKitchenStation(c *fiber.Ctx) error {
 	}
 
 	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
-	res, err := h.GameUseCase.UpgradeKitchenStation(c.Context(), userID, slug)
+	res, err := h.GameUseCase.UpgradeKitchenStation(ctx, slug)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
@@ -142,8 +154,9 @@ func (h *GameHandler) PurchaseKitchenStation(c *fiber.Ctx) error {
 	}
 
 	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
-	res, err := h.GameUseCase.UnlockKitchenStation(c.Context(), userID, slug)
+	res, err := h.GameUseCase.UnlockKitchenStation(ctx, slug)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
@@ -151,22 +164,56 @@ func (h *GameHandler) PurchaseKitchenStation(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Purchased", dto.ToUserUnlockKitchenResponse(res), nil)
 }
 
+func (h *GameHandler) GetStageUpgrades(c *fiber.Ctx) error {
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
+
+	res, err := h.GameUseCase.GetStageUpgrades(ctx)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrades Successfully Retrieved", dto.ToUserStageUpgradesResponse(res), nil)
+}
+
+func (h *GameHandler) PurchaseStageUpgrade(c *fiber.Ctx) error {
+	slug, err := helper.GetParam[string](c, "slug")
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrInvalidParam)
+	}
+
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
+	res, err := h.GameUseCase.PurchaseStageUpgrade(ctx, slug)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrade Successfully Purchased", dto.ToUserPurchasedStageUpgradeResponse(res), nil)
+}
+
 func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
 	game := userAuth.Group("/game")
 
-	// Player game interactions
-	game.Post("/sync-balance", h.SyncBalance)
-
 	// Player game stages
-	game.Get("/stages", h.GetCurrentStage)
-	game.Post("/stages/:slug/start", h.StartGameStage)
-	game.Post("/stages/:slug/complete", h.CompleteGameStage)
+	stages := game.Group("/stages")
+	stages.Get("/", h.GetAllStages)
+	stages.Get("/current", h.GetCurrentStage)
+	stages.Post("/:slug/start", h.StartGameStage)
+	stages.Post("/:slug/complete", h.CompleteGameStage)
 
 	// Player Kitchen Station
-	game.Post("/stations/:slug/purchase", h.PurchaseKitchenStation)
-	game.Post("/stations/:slug/upgrade", h.UpgradeKitchenStation)
+	stations := game.Group("/stations")
+	stations.Post("/:slug/purchase", h.PurchaseKitchenStation)
+	stations.Post("/:slug/upgrade", h.UpgradeKitchenStation)
 
-	// Player daily reward interactions
+	// Player Upgrade
+	upgrades := game.Group("/upgrades")
+	upgrades.Get("/", h.GetStageUpgrades)
+	upgrades.Post("/:slug/purchase", h.PurchaseStageUpgrade)
+
+	// Player Economy & Rewards
+	game.Post("/sync-balance", h.SyncBalance)
 	game.Get("/daily-reward/status", h.GetDailyRewardStatus)
 	game.Post("/daily-reward/claim", h.ClaimReward)
 

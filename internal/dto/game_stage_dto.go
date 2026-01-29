@@ -87,6 +87,26 @@ type CameraConfigDTO struct {
 	MaxBoundY float64 `json:"max_bound_y"`
 }
 
+type CreateStageUpgradeRequest struct {
+	BaseStageUpgradeRequest
+}
+
+type UpdateStageUpgradeRequest struct {
+	Upgrades []string `json:"upgrades"`
+}
+
+type BaseStageUpgradeRequest struct {
+	Stage    string   `json:"stage"`
+	Upgrades []string `json:"upgrades"`
+}
+
+func ToUpgradeStageResponse(stage string, upgrades []string) BaseStageUpgradeRequest {
+	return BaseStageUpgradeRequest{
+		Stage:    stage,
+		Upgrades: upgrades,
+	}
+}
+
 func (d *BaseGameStageRequest) ValidateConfig() error {
 	if d.Customer == nil || d.Staff == nil || d.KitchenConfig == nil || d.Camera == nil || d.KitchenStations == nil {
 		return errors.New("invalid request")
