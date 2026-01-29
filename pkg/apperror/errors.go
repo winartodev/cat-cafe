@@ -37,9 +37,9 @@ var (
 
 	// --- 403 - FORBIDDEN ERRORS ---
 
-	ErrAccessDenied       = NewAppError("ACCESS_DENIED", "You don't have permission to access this resource", http.StatusForbidden)
-	ErrStationNotUnlocked = NewAppError("STATION_NOT_UNLOCKED", "Station must be unlocked before upgrading", http.StatusForbidden)
-	ErrStageLocked        = NewAppError("STAGE_LOCKED", "Stage is locked", http.StatusForbidden)
+	ErrAccessDenied  = NewAppError("ACCESS_DENIED", "You don't have permission to access this resource", http.StatusForbidden)
+	ErrStationLocked = NewAppError("STATION_LOCKED", "Station must be unlocked before upgrading", http.StatusForbidden)
+	ErrStageLocked   = NewAppError("STAGE_LOCKED", "Stage is locked", http.StatusForbidden)
 
 	// --- 404 - NOT FOUND ERRORS ---
 

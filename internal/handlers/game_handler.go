@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/winartodev/cat-cafe/internal/dto"
 	"github.com/winartodev/cat-cafe/internal/usecase"
@@ -131,7 +132,7 @@ func (h *GameHandler) UpgradeKitchenStation(c *fiber.Ctx) error {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
-	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Upgraded", res, nil)
+	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Upgraded", dto.ToUserUpgradeKitchenResponse(res), nil)
 }
 
 func (h *GameHandler) PurchaseKitchenStation(c *fiber.Ctx) error {
@@ -147,7 +148,7 @@ func (h *GameHandler) PurchaseKitchenStation(c *fiber.Ctx) error {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
-	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Purchased", res, nil)
+	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Purchased", dto.ToUserUnlockKitchenResponse(res), nil)
 }
 
 func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {

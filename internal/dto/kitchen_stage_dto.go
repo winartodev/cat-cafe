@@ -1,6 +1,8 @@
 package dto
 
-import "github.com/winartodev/cat-cafe/internal/entities"
+import (
+	"github.com/winartodev/cat-cafe/internal/entities"
+)
 
 type KitchenConfigRequest struct {
 	MaxLevel                    int64                `json:"max_level"`
@@ -14,12 +16,14 @@ type KitchenConfigRequest struct {
 }
 
 type KitchenStationDTO struct {
-	FoodItemSlug  string  `json:"food_item_slug"`
-	FoodName      string  `json:"food_name"`
-	AutoUnlock    bool    `json:"auto_unlock"`
-	InitialCost   int64   `json:"initial_cost"`
-	InitialProfit int64   `json:"initial_profit"`
-	CookingTime   float64 `json:"cooking_time"`
+	FoodItemSlug string `json:"slug"`
+	FoodName     string `json:"name"`
+	AutoUnlock   bool   `json:"auto_unlock"`
+	IsLocked     bool   `json:"is_locked"`
+
+	// User progression data
+	CurrentLevel *currentStationLevel `json:"current_level,omitempty"`
+	NextLevel    *nextStationLevel    `json:"next_level,omitempty"`
 }
 
 type KitchenConfigDTO struct {
@@ -46,12 +50,10 @@ func toKitchenStationDTO(data *entities.KitchenStation) *KitchenStationDTO {
 	}
 
 	return &KitchenStationDTO{
-		FoodItemSlug:  data.FoodItemSlug,
-		FoodName:      data.FoodName,
-		AutoUnlock:    data.AutoUnlock,
-		InitialCost:   data.InitialCost,
-		InitialProfit: data.InitialProfit,
-		CookingTime:   data.CookingTime,
+		FoodItemSlug: data.FoodItemSlug,
+		FoodName:     data.FoodName,
+		AutoUnlock:   data.AutoUnlock,
+		IsLocked:     true,
 	}
 }
 
@@ -63,6 +65,62 @@ func toKitchenStationsDTO(data []entities.KitchenStation) []KitchenStationDTO {
 	kitchenStations := make([]KitchenStationDTO, 0)
 	for _, item := range data {
 		kitchenStations = append(kitchenStations, *toKitchenStationDTO(&item))
+	}
+
+	return kitchenStations
+}
+
+func toKitchenStationsDTOWithProgress(
+	stations []entities.KitchenStation,
+	userProgress *entities.UserKitchenStageProgression,
+) []KitchenStationDTO {
+	if len(stations) == 0 {
+		return nil
+	}
+
+	kitchenStations := make([]KitchenStationDTO, 0)
+	for _, station := range stations {
+		dto := toKitchenStationDTO(&station)
+
+		if userProgress == nil || len(userProgress.StationLevels) == 0 {
+			continue
+		}
+
+		// Add user progression data if available
+		if stationLevel, exists := userProgress.StationLevels[station.FoodItemSlug]; exists {
+			if stationLevel.Level == 0 {
+				dto.IsLocked = true
+			} else {
+				dto.IsLocked = false
+			}
+
+			// Current level data
+			if stationLevel.Level > 0 {
+				dto.CurrentLevel = &currentStationLevel{
+					Level:       stationLevel.Level,
+					Profit:      stationLevel.Profit,
+					CookingTime: stationLevel.PreparationTime,
+					Reward: &kitchenPhaseReward{
+						RewardName:   stationLevel.Reward.Name,
+						RewardType:   stationLevel.Reward.RewardType.Slug,
+						RewardAmount: stationLevel.Reward.Amount,
+					},
+				}
+			}
+
+			// Add next level data if available
+			if userProgress.NextLevelStats != nil {
+				if nextLevel, exists := userProgress.NextLevelStats[station.FoodItemSlug]; exists {
+					dto.NextLevel = &nextStationLevel{
+						Level:  nextLevel.Level,
+						Cost:   nextLevel.Cost,
+						Profit: nextLevel.Profit,
+					}
+				}
+			}
+		}
+
+		kitchenStations = append(kitchenStations, *dto)
 	}
 
 	return kitchenStations
@@ -90,10 +148,14 @@ func toKitchenPhaseRewards(rewards []entities.KitchenPhaseCompletionRewards) []K
 	}
 	kitchenPhaseRewards := make([]KitchenPhaseCompletionRewardDTO, 0, len(rewards))
 	for _, reward := range rewards {
+		if reward.Reward == nil || reward.Reward.RewardType == nil {
+			continue
+		}
+
 		kitchenPhaseRewards = append(kitchenPhaseRewards, KitchenPhaseCompletionRewardDTO{
 			PhaseNumber: reward.PhaseNumber,
-			Reward:      reward.RewardSlug,
-			RewardType:  reward.RewardType,
+			Reward:      reward.Reward.Slug,
+			RewardType:  reward.Reward.RewardType.Slug,
 		})
 	}
 

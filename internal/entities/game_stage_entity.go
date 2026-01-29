@@ -54,4 +54,5 @@ type GameStageConfig struct {
 	KitchenConfig      *StageKitchenConfig
 	CameraConfig       *StageCameraConfig
 	KitchenPhaseReward []KitchenPhaseCompletionRewards
+	UserProgress       *UserKitchenStageProgression
 }

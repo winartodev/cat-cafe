@@ -40,9 +40,7 @@ type KitchenPhaseCompletionRewards struct {
 	CreatedAt       time.Time `json:"-"`
 	UpdatedAt       time.Time `json:"-"`
 
-	// Additional field that didn't store into db
-	RewardSlug string `json:"reward_slug"`
-	RewardType string `json:"reward_type"`
+	Reward *Reward `json:"reward,omitempty"`
 }
 
 type PhaseRewardInfo struct {

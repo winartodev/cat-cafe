@@ -375,6 +375,13 @@ func (r *userProgressionRepository) GetUserKitchenPhaseProgressionDB(ctx context
 		return nil, err
 	}
 
+	if len(completedPhaseJSON) > 0 {
+		err = json.Unmarshal(completedPhaseJSON, &data.CompletedPhases)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &data, nil
 }
 

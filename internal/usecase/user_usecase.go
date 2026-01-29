@@ -2,11 +2,12 @@ package usecase
 
 import (
 	"context"
+	"time"
+
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
 	"github.com/winartodev/cat-cafe/pkg/helper"
-	"time"
 )
 
 type UserUseCase interface {
@@ -137,7 +138,7 @@ func (c *userUseCase) IsDailyRewardAvailable(ctx context.Context, userID int64) 
 	today := now.Truncate(24 * time.Hour)
 
 	if progression == nil {
-		progression = &entities.UserDailyReward{LongestStreak: 0, CurrentStreak: 0, LastClaimDate: nil}
+		progression = &entities.UserDailyReward{}
 	} else if progression.LastClaimDate != nil {
 		// Check if user already claimed today
 		lastClaim := progression.LastClaimDate.UTC().Truncate(24 * time.Hour)

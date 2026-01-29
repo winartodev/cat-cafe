@@ -149,11 +149,8 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 	for _, userStage := range userStages {
 		if userStage.Slug == slug {
 			// Only allow if status is Current or Complete (if you allow replay)
-			if userStage.Status == entities.GSStatusCurrent {
+			if userStage.Status == entities.GSStatusCurrent || userStage.Status == entities.GSStatusComplete {
 				canAccess = true
-			} else if userStage.Status == entities.GSStatusComplete {
-				// Decide if you want to allow replaying completed stages
-				return nil, nil, nil, apperror.ErrStageAlreadyCompleted
 			}
 			break
 		}
@@ -172,6 +169,74 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
+	// Get user kitchen progression to include in response
+	userProgress, err := g.userProgressionRepo.GetUserKitchenProgressDB(ctx, userID, stage.ID)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Calculate next level stats for all unlocked stations
+	if userProgress != nil && len(userProgress.UnlockedStations) > 0 {
+		userProgress.NextLevelStats = make(map[string]entities.UserStationLevel)
+
+		for _, slug := range userProgress.UnlockedStations {
+			currentLevel, exists := userProgress.StationLevels[slug]
+			if !exists || currentLevel.Level == 0 {
+				continue
+			}
+
+			// Skip if at max level
+			if currentLevel.Level >= config.KitchenConfig.MaxLevel {
+				continue
+			}
+
+			nextLevel := currentLevel.Level + 1
+			phaseInfo := g.calculatePhaseInfo(nextLevel, config.KitchenConfig)
+
+			// Calculate next cost and profit
+			nextCost := g.calculateUpgradeCost(
+				currentLevel.Cost,
+				currentLevel.Level,
+				config.KitchenConfig,
+				phaseInfo.CurrentPhase,
+			)
+			nextProfit := g.calculateProfit(
+				currentLevel.Profit,
+				currentLevel.Level,
+				config.KitchenConfig,
+				phaseInfo.CurrentPhase,
+				0,
+			)
+
+			// Check for override
+			foodItem, err := g.foodItemRepo.GetFoodBySlugDB(ctx, slug)
+			if err == nil && foodItem != nil {
+				override, err := g.foodItemRepo.GetOverrideLevelByFoodItemIDAndLevelDB(ctx, foodItem.ID, int(nextLevel))
+				if err == nil && override != nil {
+					nextCost = override.Cost
+					nextProfit = override.Profit
+				}
+			}
+
+			phaseRewards, err := g.kitchenConfigRepo.GetKitchenCompletionRewardByPhaseNumberDB(ctx, config.KitchenConfig.ID, phaseInfo.CurrentPhase)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+
+			currentLevel.Reward = phaseRewards.Reward
+			userProgress.StationLevels[slug] = currentLevel
+
+			userProgress.NextLevelStats[slug] = entities.UserStationLevel{
+				Level:  nextLevel,
+				Cost:   nextCost,
+				Profit: nextProfit,
+			}
+		}
+	}
+
+	// Attach user progression to config for DTO mapping
+	config.UserProgress = userProgress
 
 	return stage, config, nextStage, nil
 }
@@ -330,23 +395,14 @@ func (g *gameUseCase) UpgradeKitchenStation(ctx context.Context, userID int64, s
 		return nil, err
 	}
 
-	// get food override level
-	overrideLevel, err := g.foodItemRepo.GetOverrideLevelByFoodItemIDAndLevelDB(ctx, upgradeCtx.foodItem.ID, int(upgradeCtx.nextStation.Level))
+	// process override level if any
+	overrideCurrentLevel, overrideNextLevel, err := g.proceedOverrideLevel(ctx, upgradeCtx)
 	if err != nil {
 		return nil, err
 	}
 
-	if overrideLevel != nil {
-		upgradeCtx.nextStation = entities.UserStationLevel{
-			Level:           overrideLevel.Level,
-			Cost:            overrideLevel.Cost,
-			Profit:          overrideLevel.Profit,
-			PreparationTime: overrideLevel.PreparationTime,
-		}
-	}
-
 	// Calculate upgrade metrics
-	result := g.calculateUpgradeMetrics(upgradeCtx, overrideLevel != nil)
+	result := g.calculateUpgradeMetrics(upgradeCtx, overrideCurrentLevel, overrideNextLevel)
 
 	// Check sufficient funds
 	if upgradeCtx.userBalance.Coin < result.upgradeCost {
@@ -357,9 +413,6 @@ func (g *gameUseCase) UpgradeKitchenStation(ctx context.Context, userID int64, s
 	if err := g.executeUpgradeTransaction(ctx, upgradeCtx, result); err != nil {
 		return nil, err
 	}
-
-	// Log upgrade details
-	g.logUpgradeDetails(upgradeCtx, result)
 
 	// Build and return response
 	return g.buildUpgradeResponse(upgradeCtx, result), nil
