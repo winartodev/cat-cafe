@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS upgrades (
     name VARCHAR(100) NOT NULL,
     description TEXT DEFAULT '' NOT NULL,
     cost BIGINT NOT NULL,
+    cost_type VARCHAR(50) DEFAULT 'coin' NOT NULL,
     effect_type VARCHAR(50) NOT NULL,
     effect_value NUMERIC NOT NULL,
     effect_unit VARCHAR(50) NOT NULL,

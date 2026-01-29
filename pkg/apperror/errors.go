@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -66,6 +67,14 @@ var (
 	ErrFailedRetrieveID  = NewAppError("FAILED_RETRIEVE_ID", "Failed to retrieve last inserted ID", http.StatusInternalServerError)
 	ErrRequiredActiveTx  = NewAppError("REQUIRED_ACTIVE_TX", "This method requires an active transaction", http.StatusInternalServerError)
 )
+
+func ErrorNotFound(args ...string) *AppError {
+	return NewAppError("NOT_FOUND", "Resource not found "+strings.Join(args, " "), http.StatusNotFound)
+}
+
+func ErrorInvalidRequest(args ...string) *AppError {
+	return NewAppError("BAD_REQUEST", "Invalid request "+strings.Join(args, " "), http.StatusBadRequest)
+}
 
 // AppError represents a structured application error
 type AppError struct {
