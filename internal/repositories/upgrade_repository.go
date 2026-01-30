@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/lib/pq"
 
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
@@ -21,6 +22,8 @@ type UpgradeRepository interface {
 	GetUpgradeBySlugDB(ctx context.Context, slug string) (res *entities.Upgrade, err error)
 	GetActiveUpgradesDB(ctx context.Context, stageID int64) (res []entities.Upgrade, err error)
 	CountUpgradesDB(ctx context.Context) (totalRows int64, err error)
+
+	GetUpgradesBySlugsDB(ctx context.Context, slugs []string) ([]entities.Upgrade, error)
 }
 
 type upgradeRepository struct {
@@ -226,4 +229,29 @@ func (r *upgradeRepository) scanUpgrade(rows *sql.Row) (res *entities.Upgrade, e
 	data.Effect = effect
 
 	return &data, nil
+}
+
+func (r *upgradeRepository) GetUpgradesBySlugsDB(ctx context.Context, slugs []string) ([]entities.Upgrade, error) {
+	var upgrades []entities.Upgrade
+	rows, err := r.db.QueryContext(ctx, "SELECT id, slug FROM upgrades WHERE slug = ANY($1)", pq.Array(slugs))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var upgrade entities.Upgrade
+
+		if err := rows.Scan(
+			&upgrade.ID,
+			&upgrade.Slug,
+		); err != nil {
+			return nil, err
+		}
+
+		upgrades = append(upgrades, upgrade)
+	}
+
+	return upgrades, nil
 }

@@ -151,6 +151,18 @@ func (h *GameHandler) PurchaseKitchenStation(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Kitchen Station Successfully Purchased", dto.ToUserUnlockKitchenResponse(res), nil)
 }
 
+func (h *GameHandler) PurchaseUpgrade(c *fiber.Ctx) error {
+	// TODO: implement purchase upgrade
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrade Successfully Purchased", nil, nil)
+}
+
+func (h *GameHandler) GetUpgrades(c *fiber.Ctx) error {
+	// TODO: implement get upgrades
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrades Successfully Retrieved", nil, nil)
+}
+
 func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
 	game := userAuth.Group("/game")
 
@@ -165,6 +177,10 @@ func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAu
 	// Player Kitchen Station
 	game.Post("/stations/:slug/purchase", h.PurchaseKitchenStation)
 	game.Post("/stations/:slug/upgrade", h.UpgradeKitchenStation)
+
+	// Player Upgrade
+	game.Get("/upgrades", h.GetUpgrades)
+	game.Post("/upgrades/:slug/purchase", h.PurchaseUpgrade)
 
 	// Player daily reward interactions
 	game.Get("/daily-reward/status", h.GetDailyRewardStatus)

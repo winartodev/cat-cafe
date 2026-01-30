@@ -7,6 +7,7 @@ import (
 
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
 )
 
 type GameStageUseCase interface {
@@ -14,6 +15,9 @@ type GameStageUseCase interface {
 	UpdateGameStage(ctx context.Context, data *entities.GameStage, config *entities.GameStageConfig) (*entities.GameStage, error)
 	GetGameStages(ctx context.Context, limit, offset int) ([]entities.GameStage, int64, error)
 	GetGameStageByID(ctx context.Context, id int64) (*entities.GameStage, *entities.GameStageConfig, error)
+
+	CreateStageUpgrade(ctx context.Context, stageSlug string, upgradeTypes []string) error
+	GetStageUpgrades(ctx context.Context, stageSlug string, limit, offset int) ([]entities.Upgrade, int64, error)
 }
 
 type gameStageUseCase struct {
@@ -25,6 +29,8 @@ type gameStageUseCase struct {
 	rewardRepo         repositories.RewardRepository
 	kitchenStationRepo repositories.KitchenStationRepository
 	foodItemRepo       repositories.FoodItemRepository
+	upgradeRepo        repositories.UpgradeRepository
+	stageUpgradeRepo   repositories.StageUpgradeRepository
 }
 
 func NewGameStageUseCase(
@@ -36,6 +42,8 @@ func NewGameStageUseCase(
 	rewardRepo repositories.RewardRepository,
 	kitchenStationRepo repositories.KitchenStationRepository,
 	foodItemRepo repositories.FoodItemRepository,
+	upgradeRepo repositories.UpgradeRepository,
+	stageUpgradeRepo repositories.StageUpgradeRepository,
 ) GameStageUseCase {
 	return &gameStageUseCase{
 		gameStageRepo:      gameStageRepo,
@@ -46,6 +54,8 @@ func NewGameStageUseCase(
 		rewardRepo:         rewardRepo,
 		kitchenStationRepo: kitchenStationRepo,
 		foodItemRepo:       foodItemRepo,
+		upgradeRepo:        upgradeRepo,
+		stageUpgradeRepo:   stageUpgradeRepo,
 	}
 }
 
@@ -278,4 +288,63 @@ func (u *gameStageUseCase) createKitchenCompleteReward(ctx context.Context, tx *
 	}
 
 	return nil
+}
+
+func (u *gameStageUseCase) CreateStageUpgrade(ctx context.Context, stageSlug string, upgradeTypes []string) error {
+	stage, err := u.gameStageRepo.GetGameStageBySlugDB(ctx, stageSlug)
+	if err != nil {
+		return err
+	}
+
+	if stage == nil {
+		return apperror.ErrorNotFound("game stage", stageSlug)
+	}
+
+	upgrades, err := u.upgradeRepo.GetUpgradesBySlugsDB(ctx, upgradeTypes)
+	if err != nil {
+		return err
+	}
+
+	if len(upgrades) != len(upgradeTypes) {
+		return apperror.ErrorInvalidRequest("Some upgrade slugs are invalid")
+	}
+
+	var results []entities.StageUpgrade
+	for _, up := range upgrades {
+		res := entities.StageUpgrade{
+			StageID:   stage.ID,
+			UpgradeID: up.ID,
+		}
+		results = append(results, res)
+	}
+
+	err = u.stageUpgradeRepo.BulkCreateStageUpgradesDB(ctx, results)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *gameStageUseCase) GetStageUpgrades(ctx context.Context, stageSlug string, limit, offset int) ([]entities.Upgrade, int64, error) {
+	stage, err := u.gameStageRepo.GetGameStageBySlugDB(ctx, stageSlug)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if stage == nil {
+		return nil, 0, apperror.ErrorNotFound("game stage", stageSlug)
+	}
+
+	upgrades, err := u.stageUpgradeRepo.GetStageUpgrades(ctx, stage.ID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	total, err := u.stageUpgradeRepo.CountStageUpgrades(ctx, stage.ID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return upgrades, total, nil
 }

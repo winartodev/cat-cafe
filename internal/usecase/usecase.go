@@ -58,6 +58,8 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		repo.RewardRepository,
 		repo.KitchenStationRepository,
 		repo.FoodItemRepository,
+		repo.UpgradeRepository,
+		repo.StageUpgradeRepository,
 	)
 
 	gameUC := NewGameUseCase(

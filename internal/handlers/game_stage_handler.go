@@ -101,6 +101,41 @@ func (h *GameStageHandler) GetGameStage(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Game Stage Successfully Retrieved", dto.ToGameStageDetailResponse(gameStage, gameConfig), nil)
 }
 
+func (h *GameStageHandler) CreateStageUpgrade(c *fiber.Ctx) error {
+	var req dto.CreateStageUpgradeRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	ctx := c.Context()
+
+	err := h.GameStageUseCase.CreateStageUpgrade(ctx, req.Stage, req.UpgradeTypes)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Stage Upgrade Successfully Created", dto.ToUpgradeStageResponse(req), nil)
+}
+
+func (h *GameStageHandler) GetGameStageUpgrades(c *fiber.Ctx) error {
+	slug, err := helper.GetParam[string](c, "slug")
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	paginateParam := helper.GetPaginationParams(c)
+
+	ctx := c.Context()
+	stageUpgrades, total, err := h.GameStageUseCase.GetStageUpgrades(ctx, slug, paginateParam.Limit, paginateParam.Offset)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	meta := helper.CreatePaginationMeta(paginateParam.Page, paginateParam.Limit, total)
+
+	return response.SuccessResponse(c, fiber.StatusOK, "", stageUpgrades, meta)
+}
+
 func (h *GameStageHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
 	gameStages := internalAuth.Group("/game-stages")
 
@@ -108,6 +143,11 @@ func (h *GameStageHandler) Route(open fiber.Router, userAuth fiber.Router, inter
 	gameStages.Put("/:id", h.UpdateGameStage)
 	gameStages.Get("/", h.GetGameStages)
 	gameStages.Get("/:id", h.GetGameStage)
+
+	stageUpgrade := internalAuth.Group("/stage-upgrades")
+
+	stageUpgrade.Post("/", h.CreateStageUpgrade)
+	stageUpgrade.Get("/:slug", h.GetGameStageUpgrades)
 
 	return nil
 }
