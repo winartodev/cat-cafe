@@ -17,7 +17,7 @@ type UpgradeRepository interface {
 	GetUpgradesDB(ctx context.Context, limit, offset int) (res []entities.Upgrade, err error)
 	GetUpgradeByIDDB(ctx context.Context, id int64) (res *entities.Upgrade, err error)
 	GetUpgradeBySlugDB(ctx context.Context, slug string) (res *entities.Upgrade, err error)
-	GetActiveUpgradesDB(ctx context.Context) (res []entities.Upgrade, err error)
+	GetActiveUpgradesDB(ctx context.Context, stageID int64) (res []entities.Upgrade, err error)
 	CountUpgradesDB(ctx context.Context) (totalRows int64, err error)
 }
 
@@ -47,7 +47,6 @@ func (r *upgradeRepository) WithTx(tx *sql.Tx) UpgradeRepository {
 	}
 }
 
-// CreateUpgradeDB implements [UpgradeRepository].
 func (r *upgradeRepository) CreateUpgradeDB(ctx context.Context, data entities.Upgrade) (id *int64, err error) {
 	now := helper.NowUTC()
 
@@ -80,21 +79,16 @@ func (r *upgradeRepository) CreateUpgradeDB(ctx context.Context, data entities.U
 	return id, nil
 }
 
-// GetActiveUpgradesDB implements [UpgradeRepository].
-func (r *upgradeRepository) GetActiveUpgradesDB(ctx context.Context) (res []entities.Upgrade, err error) {
-	panic("unimplemented")
-}
-
-// GetUpgradeByIDDB implements [UpgradeRepository].
-func (r *upgradeRepository) GetUpgradeByIDDB(ctx context.Context, id int64) (res *entities.Upgrade, err error) {
-	rows, err := r.db.QueryContext(ctx, getUpgradeByIDQuery, id)
+func (r *upgradeRepository) GetActiveUpgradesDB(ctx context.Context, stageID int64) (res []entities.Upgrade, err error) {
+	rows, err := r.db.QueryContext(ctx, getActiveUpgradesQuery)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var data entities.Upgrade
-	var effect entities.UpgradeEffect
-	if rows.Next() {
+
+	for rows.Next() {
+		var data entities.Upgrade
+		var effect entities.UpgradeEffect
 		if err := rows.Scan(
 			&data.ID,
 			&data.Slug,
@@ -113,19 +107,23 @@ func (r *upgradeRepository) GetUpgradeByIDDB(ctx context.Context, id int64) (res
 		); err != nil {
 			return nil, err
 		}
+		data.Effect = effect
+		res = append(res, data)
 	}
 
-	data.Effect = effect
-
-	return &data, nil
+	return res, nil
 }
 
-// GetUpgradeBySlugDB implements [UpgradeRepository].
+func (r *upgradeRepository) GetUpgradeByIDDB(ctx context.Context, id int64) (res *entities.Upgrade, err error) {
+	row := r.db.QueryRowContext(ctx, getUpgradeByIDQuery, id)
+	return r.scanUpgrade(row)
+}
+
 func (r *upgradeRepository) GetUpgradeBySlugDB(ctx context.Context, slug string) (res *entities.Upgrade, err error) {
-	panic("unimplemented")
+	row := r.db.QueryRowContext(ctx, getUpgradeBySlugQuery, slug)
+	return r.scanUpgrade(row)
 }
 
-// GetUpgradesDB implements [UpgradeRepository].
 func (r *upgradeRepository) GetUpgradesDB(ctx context.Context, limit int, offset int) (res []entities.Upgrade, err error) {
 	rows, err := r.db.QueryContext(ctx, getUpgradesQuery, limit, offset)
 	if err != nil {
@@ -151,9 +149,30 @@ func (r *upgradeRepository) GetUpgradesDB(ctx context.Context, limit int, offset
 	return res, nil
 }
 
-// UpdateUpgradeDB implements [UpgradeRepository].
 func (r *upgradeRepository) UpdateUpgradeDB(ctx context.Context, id int64, data entities.Upgrade) (err error) {
-	panic("unimplemented")
+	now := helper.NowUTC()
+
+	_, err = r.db.ExecContext(ctx, updateUpgradeQuery,
+		data.Slug,
+		data.Name,
+		data.Description,
+		data.Cost,
+		data.CostType,
+		data.Effect.Type,
+		data.Effect.Value,
+		data.Effect.Unit,
+		data.Effect.Target,
+		data.Effect.TargetID,
+		data.IsActive,
+		data.Sequence,
+		now,
+		id,
+	)
+	if database.IsDuplicateError(err) {
+		return apperror.ErrorAlreadyExists("upgrade", "slug", data.Slug)
+	}
+
+	return err
 }
 
 func (r *upgradeRepository) CountUpgradesDB(ctx context.Context) (totalRows int64, err error) {
@@ -163,4 +182,31 @@ func (r *upgradeRepository) CountUpgradesDB(ctx context.Context) (totalRows int6
 	}
 
 	return totalRows, nil
+}
+
+func (r *upgradeRepository) scanUpgrade(rows *sql.Row) (res *entities.Upgrade, err error) {
+	var data entities.Upgrade
+	var effect entities.UpgradeEffect
+	if err := rows.Scan(
+		&data.ID,
+		&data.Slug,
+		&data.Name,
+		&data.Description,
+		&data.IsActive,
+		&data.Sequence,
+		&data.Cost,
+		&data.CostType,
+		&effect.Type,
+		&effect.Value,
+		&effect.Unit,
+		&effect.Target,
+		&effect.TargetID,
+		&effect.TargetName,
+	); err != nil {
+		return nil, err
+	}
+
+	data.Effect = effect
+
+	return &data, nil
 }

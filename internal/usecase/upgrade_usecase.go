@@ -9,9 +9,10 @@ import (
 )
 
 type UpgradeUseCase interface {
-	CreateUpgrade(ctx context.Context, upgrade *entities.Upgrade) (res *entities.Upgrade, err error)
+	CreateUpgrade(ctx context.Context, data *entities.Upgrade) (res *entities.Upgrade, err error)
 	GetUpgrades(ctx context.Context, limit, offset int) (res []entities.Upgrade, totalRows int64, err error)
 	GetUpgradeByID(ctx context.Context, id int64) (res *entities.Upgrade, err error)
+	UpdateUpgrade(ctx context.Context, id int64, data entities.Upgrade) (res *entities.Upgrade, err error)
 }
 
 type upgradeUseCase struct {
@@ -29,28 +30,28 @@ func NewUpgradeUseCase(
 	}
 }
 
-func (u *upgradeUseCase) CreateUpgrade(ctx context.Context, upgrade *entities.Upgrade) (res *entities.Upgrade, err error) {
-	if u.isEffectTargetFood(upgrade.Effect.Target) {
-		foodItem, err := u.foodItemRepo.GetFoodBySlugDB(ctx, upgrade.Effect.TargetName)
+func (u *upgradeUseCase) CreateUpgrade(ctx context.Context, data *entities.Upgrade) (res *entities.Upgrade, err error) {
+	if u.isEffectTargetFood(data.Effect.Target) {
+		foodItem, err := u.foodItemRepo.GetFoodBySlugDB(ctx, data.Effect.TargetName)
 		if err != nil {
 			return nil, err
 		}
 
 		if foodItem == nil {
-			return nil, apperror.ErrorNotFound("food item:", upgrade.Effect.TargetName)
+			return nil, apperror.ErrorNotFound("food item:", data.Effect.TargetName)
 		}
 
-		upgrade.Effect.TargetID = foodItem.ID
+		data.Effect.TargetID = foodItem.ID
 	}
 
-	id, err := u.upgradeRepo.CreateUpgradeDB(ctx, *upgrade)
+	id, err := u.upgradeRepo.CreateUpgradeDB(ctx, *data)
 	if err != nil {
 		return nil, err
 	}
 
-	upgrade.ID = *id
+	data.ID = *id
 
-	return upgrade, nil
+	return data, nil
 }
 
 func (u *upgradeUseCase) GetUpgrades(ctx context.Context, limit, offset int) (res []entities.Upgrade, totalRows int64, err error) {
@@ -70,6 +71,15 @@ func (u *upgradeUseCase) GetUpgrades(ctx context.Context, limit, offset int) (re
 // GetUpgradeByID implements UpgradeUseCase.
 func (u *upgradeUseCase) GetUpgradeByID(ctx context.Context, id int64) (res *entities.Upgrade, err error) {
 	return u.upgradeRepo.GetUpgradeByIDDB(ctx, id)
+}
+
+func (u *upgradeUseCase) UpdateUpgrade(ctx context.Context, id int64, data entities.Upgrade) (res *entities.Upgrade, err error) {
+	err = u.upgradeRepo.UpdateUpgradeDB(ctx, id, data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
 }
 
 func (u *upgradeUseCase) isEffectTargetFood(target entities.UpgradeEffectTarget) bool {

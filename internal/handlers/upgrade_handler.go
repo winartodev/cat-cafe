@@ -74,12 +74,37 @@ func (h *UpgradeHandler) GetUpgradeByID(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Upgrade Successfully Retrieved", dto.ToDetailUpgradeResponseDTO(upgrade), nil)
 }
 
+func (h *UpgradeHandler) UpdateUpgrade(c *fiber.Ctx) error {
+	id, err := helper.GetParam[int64](c, "id")
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	var request dto.UpdateUpgradeDTO
+	if err := c.BodyParser(&request); err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	if err := request.ValidateRequest(); err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	upgrades, err := h.upgradeUC.UpdateUpgrade(c.Context(), id, request.ToEntity())
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	data := dto.ToDetailUpgradeResponseDTO(upgrades)
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrade Successfully Updated", data, nil)
+}
+
 func (h *UpgradeHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
 	upgrade := internalAuth.Group("/upgrades")
 
 	upgrade.Post("/", h.CreateUpgrade)
 	upgrade.Get("/", h.GetUpgrades)
 	upgrade.Get("/:id", h.GetUpgradeByID)
+	upgrade.Put("/:id", h.UpdateUpgrade)
 
 	return nil
 }

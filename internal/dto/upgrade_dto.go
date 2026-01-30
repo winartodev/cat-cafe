@@ -16,6 +16,17 @@ type CreateUpgradeDTO struct {
 	Effect      UpgradeEffectDTO         `json:"effect"`
 }
 
+type UpdateUpgradeDTO struct {
+	Slug        string                   `json:"slug"`
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
+	Cost        int64                    `json:"cost"`
+	CostType    entities.UpgradeCostType `json:"cost_type"`
+	IsActive    bool                     `json:"is_active"`
+	Sequence    int64                    `json:"sequence"`
+	Effect      UpgradeEffectDTO         `json:"effect"`
+}
+
 type BaseUpgradeResponseDTO struct {
 	ID          int64                    `json:"id"`
 	Slug        string                   `json:"slug"`
@@ -105,6 +116,45 @@ func ToDetailUpgradeResponseDTO(e *entities.Upgrade) *BaseUpgradeResponseDTO {
 		Sequence:    e.Sequence,
 		Effect:      ToUpgradeEffectDTO(&e.Effect),
 	}
+}
+
+func ToUpdateUpgradeResponseDTO(e *entities.Upgrade) *BaseUpgradeResponseDTO {
+	return &BaseUpgradeResponseDTO{
+		ID:          e.ID,
+		Slug:        e.Slug,
+		Name:        e.Name,
+		Description: e.Description,
+		Cost:        e.Cost,
+		CostType:    e.CostType,
+		IsActive:    e.IsActive,
+		Sequence:    e.Sequence,
+		Effect:      ToUpgradeEffectDTO(&e.Effect),
+	}
+}
+
+func (u *UpdateUpgradeDTO) ToEntity() entities.Upgrade {
+	return entities.Upgrade{
+		Slug:        u.Slug,
+		Name:        u.Name,
+		Description: u.Description,
+		Cost:        u.Cost,
+		CostType:    u.CostType,
+		IsActive:    u.IsActive,
+		Sequence:    u.Sequence,
+		Effect:      u.Effect.ToEntity(),
+	}
+}
+
+func (u *UpdateUpgradeDTO) ValidateRequest() error {
+	if !u.CostType.IsValid() {
+		return apperror.ErrorInvalidRequest("cost type:", u.CostType.String())
+	}
+
+	if err := u.Effect.ValidateRequest(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (u *CreateUpgradeDTO) ValidateRequest() error {
