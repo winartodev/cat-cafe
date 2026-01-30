@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/winartodev/cat-cafe/internal/dto"
 	"github.com/winartodev/cat-cafe/internal/usecase"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
+	"github.com/winartodev/cat-cafe/pkg/helper"
 	"github.com/winartodev/cat-cafe/pkg/response"
 )
 
@@ -30,15 +33,53 @@ func (h *UpgradeHandler) CreateUpgrade(c *fiber.Ctx) error {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
-	if err := h.upgradeUC.CreateUpgrade(c.Context(), request.ToEntity()); err != nil {
+	data := request.ToEntity()
+	upgrade, err := h.upgradeUC.CreateUpgrade(c.Context(), &data)
+	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
-	return response.SuccessResponse(c, fiber.StatusOK, "Upgrade Successfully Created", nil, nil)
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrade Successfully Created", dto.ToCreateUpgradeResponseDTO(upgrade), nil)
+}
+
+func (h *UpgradeHandler) GetUpgrades(c *fiber.Ctx) error {
+	params := helper.GetPaginationParams(c)
+
+	upgrades, totalRows, err := h.upgradeUC.GetUpgrades(c.Context(), params.Limit, params.Offset)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	data := dto.ToGetUpgradesResponseDTO(upgrades)
+	meta := helper.CreatePaginationMeta(params.Page, params.Limit, totalRows)
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrades Successfully Retrieved", data, meta)
+}
+
+func (h *UpgradeHandler) GetUpgradeByID(c *fiber.Ctx) error {
+	id, err := helper.GetParam[int64](c, "id")
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	upgrade, err := h.upgradeUC.GetUpgradeByID(c.Context(), id)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	if upgrade == nil {
+		return response.FailedResponse(c, h.errorHandler, apperror.ErrorNotFound("upgrade", fmt.Sprint(id)))
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Upgrade Successfully Retrieved", dto.ToDetailUpgradeResponseDTO(upgrade), nil)
 }
 
 func (h *UpgradeHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
-	internalAuth.Post("/upgrades", h.CreateUpgrade)
+	upgrade := internalAuth.Group("/upgrades")
+
+	upgrade.Post("/", h.CreateUpgrade)
+	upgrade.Get("/", h.GetUpgrades)
+	upgrade.Get("/:id", h.GetUpgradeByID)
 
 	return nil
 }

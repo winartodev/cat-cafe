@@ -76,6 +76,18 @@ func ErrorInvalidRequest(args ...string) *AppError {
 	return NewAppError("BAD_REQUEST", "Invalid request "+strings.Join(args, " "), http.StatusBadRequest)
 }
 
+func ErrorAlreadyExists(resource, field, value string) *AppError {
+	return NewAppError(
+		"ALREADY_EXISTS",
+		fmt.Sprintf("%s with %s '%s' already exists", resource, field, value),
+		http.StatusConflict,
+	)
+}
+
+func ErrorInvalidParam(args ...string) *AppError {
+	return NewAppError("INVALID_PARAM", "Invalid parameter "+strings.Join(args, " "), http.StatusBadRequest)
+}
+
 // AppError represents a structured application error
 type AppError struct {
 	Code       string // Error code for client

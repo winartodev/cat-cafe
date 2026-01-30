@@ -21,5 +21,6 @@ type UpgradeEffect struct {
 	Value      float64
 	Unit       UpgradeEffectUnit
 	Target     UpgradeEffectTarget
+	TargetID   int64
 	TargetName string
 }

@@ -1,11 +1,10 @@
 package helper
 
 import (
-	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
 )
 
 type Scalar interface {
@@ -29,7 +28,7 @@ func GetParam[T Scalar](c *fiber.Ctx, name string) (T, error) {
 	p := c.Params(name)
 	if p == "" {
 		var zero T
-		return zero, fmt.Errorf("parameter %s is missing", name)
+		return zero, apperror.ErrorInvalidParam(name)
 	}
 
 	var target T
@@ -39,17 +38,17 @@ func GetParam[T Scalar](c *fiber.Ctx, name string) (T, error) {
 	case int:
 		v, err := strconv.Atoi(p)
 		if err != nil {
-			return target, fmt.Errorf("invalid int: %w", err)
+			return target, apperror.ErrorInvalidParam("must be numeric")
 		}
 		return any(v).(T), nil
 	case int64:
 		v, err := strconv.ParseInt(p, 10, 64)
 		if err != nil {
-			return target, fmt.Errorf("invalid int64: %w", err)
+			return target, apperror.ErrorInvalidParam("must be numeric")
 		}
 		return any(v).(T), nil
 	default:
-		return target, errors.New("unsupported type")
+		return target, apperror.ErrorInvalidParam("unsupported type")
 	}
 }
 
