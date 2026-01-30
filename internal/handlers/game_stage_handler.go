@@ -133,7 +133,7 @@ func (h *GameStageHandler) GetGameStageUpgrades(c *fiber.Ctx) error {
 
 	meta := helper.CreatePaginationMeta(paginateParam.Page, paginateParam.Limit, total)
 
-	return response.SuccessResponse(c, fiber.StatusOK, "", stageUpgrades, meta)
+	return response.SuccessResponse(c, fiber.StatusOK, "", dto.ToStageUpgradesResponseDTO(slug, stageUpgrades), meta)
 }
 
 func (h *GameStageHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {

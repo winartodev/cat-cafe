@@ -39,6 +39,11 @@ type BaseUpgradeResponseDTO struct {
 	Effect      *UpgradeEffectDTO        `json:"effect,omitempty"`
 }
 
+type BaseStageUpgradeResponseDTO struct {
+	Stage    string                   `json:"stage"`
+	Upgrades []BaseUpgradeResponseDTO `json:"upgrades"`
+}
+
 type UpgradeEffectDTO struct {
 	Type       entities.UpgradeEffectType   `json:"type"`
 	Value      float64                      `json:"value"`
@@ -118,17 +123,24 @@ func ToDetailUpgradeResponseDTO(e *entities.Upgrade) *BaseUpgradeResponseDTO {
 	}
 }
 
-func ToUpdateUpgradeResponseDTO(e *entities.Upgrade) *BaseUpgradeResponseDTO {
-	return &BaseUpgradeResponseDTO{
-		ID:          e.ID,
-		Slug:        e.Slug,
-		Name:        e.Name,
-		Description: e.Description,
-		Cost:        e.Cost,
-		CostType:    e.CostType,
-		IsActive:    e.IsActive,
-		Sequence:    e.Sequence,
-		Effect:      ToUpgradeEffectDTO(&e.Effect),
+func ToStageUpgradesResponseDTO(stageSlug string, e []entities.Upgrade) BaseStageUpgradeResponseDTO {
+	var upgrades []BaseUpgradeResponseDTO
+	for _, v := range e {
+		upgrades = append(upgrades, BaseUpgradeResponseDTO{
+			ID:          v.ID,
+			Slug:        v.Slug,
+			Name:        v.Name,
+			Description: v.Description,
+			Cost:        v.Cost,
+			CostType:    v.CostType,
+			IsActive:    v.IsActive,
+			Sequence:    v.Sequence,
+			Effect:      nil,
+		})
+	}
+	return BaseStageUpgradeResponseDTO{
+		Stage:    stageSlug,
+		Upgrades: upgrades,
 	}
 }
 
