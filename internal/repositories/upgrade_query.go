@@ -121,19 +121,18 @@ const (
 	updateUpgradeQuery = `
 		UPDATE upgrades
 		SET
-			slug = $1,
-			name = $2,
-			description = $3,
-			cost = $4,
-			cost_type = $5,
-			effect_type = $6,
-			effect_value = $7,
-			effect_unit = $8,
-			effect_target = $9,
-			effect_target_id = $10,
-			is_active = $11,
-			sequence = $12,
-			updated_at = $13
-		WHERE id = $14
+			name = $1,
+			description = $2,
+			cost = $3,
+			cost_type = $4,
+			effect_type = $5,
+			effect_value = $6,
+			effect_unit = $7,
+			effect_target = $8,
+			effect_target_id = $9,
+			is_active = $10,
+			sequence = $11,
+			updated_at = $12
+		WHERE id = $13
 	`
 )

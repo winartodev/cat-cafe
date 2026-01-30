@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/pkg/apperror"
@@ -116,12 +118,26 @@ func (r *upgradeRepository) GetActiveUpgradesDB(ctx context.Context, stageID int
 
 func (r *upgradeRepository) GetUpgradeByIDDB(ctx context.Context, id int64) (res *entities.Upgrade, err error) {
 	row := r.db.QueryRowContext(ctx, getUpgradeByIDQuery, id)
-	return r.scanUpgrade(row)
+	res, err = r.scanUpgrade(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, apperror.ErrorNotFound("upgrade", "id", fmt.Sprint(id))
+	} else if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (r *upgradeRepository) GetUpgradeBySlugDB(ctx context.Context, slug string) (res *entities.Upgrade, err error) {
 	row := r.db.QueryRowContext(ctx, getUpgradeBySlugQuery, slug)
-	return r.scanUpgrade(row)
+	res, err = r.scanUpgrade(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, apperror.ErrorNotFound("upgrade", "slug", slug)
+	} else if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (r *upgradeRepository) GetUpgradesDB(ctx context.Context, limit int, offset int) (res []entities.Upgrade, err error) {
@@ -153,7 +169,6 @@ func (r *upgradeRepository) UpdateUpgradeDB(ctx context.Context, id int64, data 
 	now := helper.NowUTC()
 
 	_, err = r.db.ExecContext(ctx, updateUpgradeQuery,
-		data.Slug,
 		data.Name,
 		data.Description,
 		data.Cost,
@@ -170,9 +185,11 @@ func (r *upgradeRepository) UpdateUpgradeDB(ctx context.Context, id int64, data 
 	)
 	if database.IsDuplicateError(err) {
 		return apperror.ErrorAlreadyExists("upgrade", "slug", data.Slug)
+	} else if err != nil {
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (r *upgradeRepository) CountUpgradesDB(ctx context.Context) (totalRows int64, err error) {

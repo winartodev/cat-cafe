@@ -34,7 +34,7 @@ func (h *UpgradeHandler) CreateUpgrade(c *fiber.Ctx) error {
 	}
 
 	data := request.ToEntity()
-	upgrade, err := h.upgradeUC.CreateUpgrade(c.Context(), &data)
+	upgrade, err := h.upgradeUC.CreateUpgrade(c.Context(), data)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
