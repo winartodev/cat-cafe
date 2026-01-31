@@ -75,7 +75,7 @@ func (h *GameHandler) ClaimReward(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "Daily Reward Claimed Successfully", dto.ToClaimDailyRewardResponse(reward, newBalance), nil)
 }
 
-func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
+func (h *GameHandler) GetAllStages(c *fiber.Ctx) error {
 	userID := helper.GetUserID(c)
 	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
 
@@ -85,6 +85,18 @@ func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
 	}
 
 	return response.SuccessResponse(c, fiber.StatusOK, "Current Stage Successfully Retrieved", dto.ToUserGameStageResponses(stages), nil)
+}
+
+func (h *GameHandler) GetCurrentStage(c *fiber.Ctx) error {
+	userID := helper.GetUserID(c)
+	ctx := context.WithValue(c.Context(), helper.ContextUserIDKey, userID)
+
+	gameStage, config, nextStage, err := h.GameUseCase.GetCurrentGameStage(ctx, userID)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Current Stage Successfully Retrieved", dto.ToUserDetailGameStageResponse(gameStage, config, nextStage), nil)
 }
 
 func (h *GameHandler) StartGameStage(c *fiber.Ctx) error {
@@ -166,23 +178,25 @@ func (h *GameHandler) GetUpgrades(c *fiber.Ctx) error {
 func (h *GameHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
 	game := userAuth.Group("/game")
 
-	// Player game interactions
-	game.Post("/sync-balance", h.SyncBalance)
-
 	// Player game stages
-	game.Get("/stages", h.GetCurrentStage)
-	game.Post("/stages/:slug/start", h.StartGameStage)
-	game.Post("/stages/:slug/complete", h.CompleteGameStage)
+	stages := game.Group("/stages")
+	stages.Get("/", h.GetAllStages)
+	stages.Get("/current", h.GetCurrentStage)
+	stages.Post("/:slug/start", h.StartGameStage)
+	stages.Post("/:slug/complete", h.CompleteGameStage)
 
 	// Player Kitchen Station
-	game.Post("/stations/:slug/purchase", h.PurchaseKitchenStation)
-	game.Post("/stations/:slug/upgrade", h.UpgradeKitchenStation)
+	stations := game.Group("/stations")
+	stations.Post("/:slug/purchase", h.PurchaseKitchenStation)
+	stations.Post("/:slug/upgrade", h.UpgradeKitchenStation)
 
 	// Player Upgrade
-	game.Get("/upgrades", h.GetUpgrades)
-	game.Post("/upgrades/:slug/purchase", h.PurchaseUpgrade)
+	upgrades := game.Group("/upgrades")
+	upgrades.Get("/", h.GetUpgrades)
+	upgrades.Post("/:slug/purchase", h.PurchaseUpgrade)
 
-	// Player daily reward interactions
+	// Player Economy & Rewards
+	game.Post("/sync-balance", h.SyncBalance)
 	game.Get("/daily-reward/status", h.GetDailyRewardStatus)
 	game.Post("/daily-reward/claim", h.ClaimReward)
 

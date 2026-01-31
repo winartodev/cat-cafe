@@ -182,6 +182,10 @@ func ToUserDetailGameStageResponse(
 	config *entities.GameStageConfig,
 	nextStage *entities.UserNextGameStageInfo,
 ) *UserDetailGameStageResponse {
+	if data == nil || config == nil {
+		return nil
+	}
+
 	return &UserDetailGameStageResponse{
 		Slug:            data.Slug,
 		Name:            data.Name,
