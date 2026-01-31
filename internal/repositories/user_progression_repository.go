@@ -31,6 +31,7 @@ type UserProgressionRepository interface {
 	CreateGameStageProgressionDB(ctx context.Context, userID int64, stageID int64) (*int64, error)
 	CheckStageProgressionExistsDB(ctx context.Context, userID int64, stageID int64) (bool, error)
 	MarkStageAsCompleteDB(ctx context.Context, userID int64, stageID int64) error
+	MarkStageAsStartedDB(ctx context.Context, userID int64, stageID int64) error
 
 	CreateUserKitchenProgressionDB(ctx context.Context, data *entities.UserKitchenStageProgression) (err error)
 	UpdateUserKitchenProgressDB(ctx context.Context, userID int64, stageID int64, progress *entities.UserKitchenStageProgression) (err error)
@@ -468,6 +469,20 @@ func (r *userProgressionRepository) CreateUserKitchenClaimRewardDB(ctx context.C
 	if database.IsDuplicateError(err) {
 		return apperror.ErrConflict
 	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *userProgressionRepository) MarkStageAsStartedDB(ctx context.Context, userID int64, stageID int64) error {
+	now := helper.NowUTC()
+	_, err := r.db.ExecContext(ctx, markStageAsStartedQuery,
+		now,
+		userID,
+		stageID,
+	)
+	if err != nil {
 		return err
 	}
 

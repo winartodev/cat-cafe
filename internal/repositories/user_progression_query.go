@@ -23,7 +23,7 @@ const (
 			completed_at
 		FROM user_stage_progress
 		WHERE user_id = $1
-		ORDER BY id DESC
+		ORDER BY last_started_at DESC
     	LIMIT 1;
 	`
 
@@ -131,5 +131,12 @@ const (
 		 	phase_number,
 		 	claimed_at
 		) VALUES ($1, $2, $3, $4,$5)
+	`
+
+	markStageAsStartedQuery = `
+		UPDATE user_stage_progress 
+			SET 
+			    last_started_at = $1
+		WHERE user_id = $2 AND stage_id = $3
 	`
 )

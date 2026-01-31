@@ -165,7 +165,7 @@ func ToUserGameStageResponses(data []entities.UserGameStage) *UserGameStageRespo
 	var stages []UserGameStage
 	var currentStageIdx int
 	for i, v := range data {
-		if v.Status == entities.GSStatusCurrent {
+		if v.Status == entities.GSStatusAvailable {
 			currentStageIdx = i
 		}
 		stages = append(stages, *ToUserGameStageResponse(&v))

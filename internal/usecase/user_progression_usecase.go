@@ -41,6 +41,11 @@ func (u *userProgressionUseCase) InitializeUserProgression(ctx context.Context, 
 			return err
 		}
 
+		err = userProgressionTx.MarkStageAsStartedDB(ctx, userID, stageID)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {

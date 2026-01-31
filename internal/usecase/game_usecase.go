@@ -149,7 +149,7 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 	for _, userStage := range userStages {
 		if userStage.Slug == slug {
 			// Only allow if status is Current or Complete (if you allow replay)
-			if userStage.Status == entities.GSStatusCurrent || userStage.Status == entities.GSStatusComplete {
+			if userStage.Status == entities.GSStatusAvailable || userStage.Status == entities.GSStatusComplete {
 				canAccess = true
 			}
 			break
@@ -259,7 +259,7 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 		if lastProgress == nil {
 			// First stage should be current/available
 			if i == 0 {
-				currentStage.Status = entities.GSStatusCurrent
+				currentStage.Status = entities.GSStatusAvailable
 				isFoundCurrent = true
 
 				nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusLocked)
@@ -275,9 +275,9 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 				if lastProgress.IsComplete {
 					currentStage.Status = entities.GSStatusComplete
 
-					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusCurrent)
+					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusAvailable)
 				} else {
-					currentStage.Status = entities.GSStatusCurrent
+					currentStage.Status = entities.GSStatusAvailable
 
 					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusLocked)
 				}
@@ -290,7 +290,7 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 				// If last progress is complete, and we haven't set a current stage yet,
 				// this is the next available stage
 				if lastProgress.IsComplete && !isFoundCurrent {
-					currentStage.Status = entities.GSStatusCurrent
+					currentStage.Status = entities.GSStatusAvailable
 					isFoundCurrent = true
 
 					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusLocked)
@@ -317,7 +317,6 @@ func (g *gameUseCase) CompleteGameStage(ctx context.Context, userID int64, slug 
 		return apperror.ErrRecordNotFound
 	}
 
-	// TODO: FIX THIS EITHER USE LATEST GAME STAGE PROGRESSION OR BY STAGE GAME
 	userStageProgress, err := g.userProgressionRepo.GetGameStageProgressionDB(ctx, userID, stage.ID)
 	if err != nil {
 		return err
@@ -375,9 +374,6 @@ func (g *gameUseCase) UnlockKitchenStation(ctx context.Context, userID int64, sl
 	if err := g.executeUnlockTransaction(ctx, unlockCtx, result); err != nil {
 		return nil, err
 	}
-
-	// Log unlock details
-	g.logUnlockDetails(unlockCtx, result)
 
 	// Build and return response
 	return g.buildUnlockResponse(unlockCtx, result), nil
