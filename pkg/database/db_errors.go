@@ -1,6 +1,9 @@
 package database
 
-import "strings"
+import (
+	"log"
+	"strings"
+)
 
 func IsDuplicateError(err error) bool {
 	if err == nil {
@@ -8,6 +11,9 @@ func IsDuplicateError(err error) bool {
 	}
 
 	msg := err.Error()
+
+	log.Println(msg)
+
 	return strings.Contains(msg, "unique constraint") ||
 		strings.Contains(msg, "duplicate key")
 }

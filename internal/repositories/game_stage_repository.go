@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/winartodev/cat-cafe/internal/entities"
@@ -106,7 +107,9 @@ func (r *gameStageRepository) UpdateGameStageWithTxDB(ctx context.Context, data 
 		data.Sequence,
 		data.Description,
 	)
-	if err != nil {
+	if database.IsDuplicateError(err) {
+		return apperror.ErrConflict
+	} else if err != nil {
 		return err
 	}
 

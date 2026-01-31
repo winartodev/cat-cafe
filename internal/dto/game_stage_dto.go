@@ -91,15 +91,19 @@ type CreateStageUpgradeRequest struct {
 	BaseStageUpgradeRequest
 }
 
-type BaseStageUpgradeRequest struct {
-	Stage        string   `json:"stage"`
-	UpgradeTypes []string `json:"upgrades"`
+type UpdateStageUpgradeRequest struct {
+	Upgrades []string `json:"upgrades"`
 }
 
-func ToUpgradeStageResponse(data CreateStageUpgradeRequest) BaseStageUpgradeRequest {
+type BaseStageUpgradeRequest struct {
+	Stage    string   `json:"stage"`
+	Upgrades []string `json:"upgrades"`
+}
+
+func ToUpgradeStageResponse(stage string, upgrades []string) BaseStageUpgradeRequest {
 	return BaseStageUpgradeRequest{
-		Stage:        data.Stage,
-		UpgradeTypes: data.UpgradeTypes,
+		Stage:    stage,
+		Upgrades: upgrades,
 	}
 }
 

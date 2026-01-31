@@ -27,4 +27,8 @@ const (
 				 JOIN upgrades u  ON gsu.upgrade_id = u.id
 		WHERE gsu.game_stage_id = $1
 	`
+
+	deleteStageUpgradeQuery = `
+		DELETE FROM game_stage_upgrades WHERE game_stage_id = $1
+	`
 )

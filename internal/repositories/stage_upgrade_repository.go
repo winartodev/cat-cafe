@@ -15,8 +15,9 @@ type StageUpgradeRepository interface {
 	StageUpgradeWithTx(ctx context.Context, fn func(tx *sql.Tx) error) (err error)
 
 	BulkCreateStageUpgradesDB(ctx context.Context, data []entities.StageUpgrade) (err error)
-	GetStageUpgrades(ctx context.Context, stageID int64, limit, offset int) ([]entities.Upgrade, error)
-	CountStageUpgrades(ctx context.Context, stageID int64) (int64, error)
+	GetStageUpgradesDB(ctx context.Context, stageID int64, limit, offset int) ([]entities.Upgrade, error)
+	CountStageUpgradesDB(ctx context.Context, stageID int64) (int64, error)
+	DeleteStageUpgradeDB(ctx context.Context, stageID int64) (err error)
 }
 
 type stageUpgradeRepository struct {
@@ -91,7 +92,7 @@ func (r *stageUpgradeRepository) BulkCreateStageUpgradesDB(ctx context.Context, 
 	return nil
 }
 
-func (r *stageUpgradeRepository) GetStageUpgrades(ctx context.Context, stageID int64, limit, offset int) ([]entities.Upgrade, error) {
+func (r *stageUpgradeRepository) GetStageUpgradesDB(ctx context.Context, stageID int64, limit, offset int) ([]entities.Upgrade, error) {
 	query := getStageUpgradeQuery + ` ORDER BY u.sequence ASC LIMIT $2 OFFSET $3`
 
 	rows, err := r.db.QueryContext(ctx, query, stageID, limit, offset)
@@ -134,7 +135,7 @@ func (r *stageUpgradeRepository) GetStageUpgrades(ctx context.Context, stageID i
 	return upgrades, nil
 }
 
-func (r *stageUpgradeRepository) CountStageUpgrades(ctx context.Context, stageID int64) (int64, error) {
+func (r *stageUpgradeRepository) CountStageUpgradesDB(ctx context.Context, stageID int64) (int64, error) {
 	var count int64
 
 	err := r.db.QueryRowContext(ctx, getStageUpgradeCountQuery, stageID).Scan(&count)
@@ -143,4 +144,13 @@ func (r *stageUpgradeRepository) CountStageUpgrades(ctx context.Context, stageID
 	}
 
 	return count, nil
+}
+
+func (r *stageUpgradeRepository) DeleteStageUpgradeDB(ctx context.Context, stageID int64) (err error) {
+	_, err = r.db.ExecContext(ctx, deleteStageUpgradeQuery, stageID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

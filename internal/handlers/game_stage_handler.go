@@ -38,9 +38,6 @@ func (h *GameStageHandler) CreateGameStage(c *fiber.Ctx) error {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
-	helper.PrettyPrint(gameStage)
-	helper.PrettyPrint(stageConfig)
-
 	return response.SuccessResponse(c, fiber.StatusCreated, "Game Stage Successfully Created", data, nil)
 }
 
@@ -109,12 +106,12 @@ func (h *GameStageHandler) CreateStageUpgrade(c *fiber.Ctx) error {
 
 	ctx := c.Context()
 
-	err := h.GameStageUseCase.CreateStageUpgrade(ctx, req.Stage, req.UpgradeTypes)
+	err := h.GameStageUseCase.CreateStageUpgrade(ctx, req.Stage, req.Upgrades)
 	if err != nil {
 		return response.FailedResponse(c, h.errorHandler, err)
 	}
 
-	return response.SuccessResponse(c, fiber.StatusOK, "Stage Upgrade Successfully Created", dto.ToUpgradeStageResponse(req), nil)
+	return response.SuccessResponse(c, fiber.StatusOK, "Stage Upgrade Successfully Created", dto.ToUpgradeStageResponse(req.Stage, req.Upgrades), nil)
 }
 
 func (h *GameStageHandler) GetGameStageUpgrades(c *fiber.Ctx) error {
@@ -136,6 +133,27 @@ func (h *GameStageHandler) GetGameStageUpgrades(c *fiber.Ctx) error {
 	return response.SuccessResponse(c, fiber.StatusOK, "", dto.ToStageUpgradesResponseDTO(slug, stageUpgrades), meta)
 }
 
+func (h *GameStageHandler) UpdateStageUpgrade(c *fiber.Ctx) error {
+	slug, err := helper.GetParam[string](c, "slug")
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	var req dto.UpdateStageUpgradeRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	ctx := c.Context()
+
+	err = h.GameStageUseCase.UpdateStageUpgrades(ctx, slug, req.Upgrades)
+	if err != nil {
+		return response.FailedResponse(c, h.errorHandler, err)
+	}
+
+	return response.SuccessResponse(c, fiber.StatusOK, "Stage Upgrade Successfully Updated", dto.ToUpgradeStageResponse(slug, req.Upgrades), nil)
+}
+
 func (h *GameStageHandler) Route(open fiber.Router, userAuth fiber.Router, internalAuth fiber.Router) error {
 	gameStages := internalAuth.Group("/game-stages")
 
@@ -148,6 +166,7 @@ func (h *GameStageHandler) Route(open fiber.Router, userAuth fiber.Router, inter
 
 	stageUpgrade.Post("/", h.CreateStageUpgrade)
 	stageUpgrade.Get("/:slug", h.GetGameStageUpgrades)
+	stageUpgrade.Put("/:slug", h.UpdateStageUpgrade)
 
 	return nil
 }

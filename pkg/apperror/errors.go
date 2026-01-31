@@ -114,6 +114,10 @@ func (e *AppError) Error() string {
 	return e.Message
 }
 
+func (e *AppError) GetCode() string {
+	return e.Code
+}
+
 // WithDetails adds additional details to the error
 func (e *AppError) WithDetails(details string) *AppError {
 	return &AppError{

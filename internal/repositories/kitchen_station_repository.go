@@ -6,6 +6,8 @@ import (
 	"errors"
 
 	"github.com/winartodev/cat-cafe/internal/entities"
+	"github.com/winartodev/cat-cafe/pkg/apperror"
+	"github.com/winartodev/cat-cafe/pkg/database"
 	"github.com/winartodev/cat-cafe/pkg/helper"
 )
 
@@ -63,7 +65,9 @@ func (r *kitchenStationRepository) CreateKitchenStationsWithTxDB(ctx context.Con
 	}
 
 	rows, err := r.db.QueryContext(ctx, queryString, args...)
-	if err != nil {
+	if database.IsDuplicateError(err) {
+		return nil, apperror.ErrConflict
+	} else if err != nil {
 		return nil, err
 	}
 

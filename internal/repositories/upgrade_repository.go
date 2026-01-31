@@ -22,7 +22,6 @@ type UpgradeRepository interface {
 	GetUpgradeBySlugDB(ctx context.Context, slug string) (res *entities.Upgrade, err error)
 	GetActiveUpgradesDB(ctx context.Context, stageID int64) (res []entities.Upgrade, err error)
 	CountUpgradesDB(ctx context.Context) (totalRows int64, err error)
-
 	GetUpgradesBySlugsDB(ctx context.Context, slugs []string) ([]entities.Upgrade, error)
 }
 
