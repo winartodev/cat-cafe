@@ -49,6 +49,10 @@ func SetupHandler(app *fiber.App, uc usecase.UseCase, middleware middleware.Midd
 		uc.UpgradeUseCase,
 	)
 
+	tutorialHandler := NewTutorialHandler(
+		uc.TutorialUseCase,
+	)
+
 	api := app.Group("/api")
 	userAuth := api.Group("/v1", middleware.WithUserAuth())
 	internalAuth := api.Group("/internal")
@@ -60,6 +64,7 @@ func SetupHandler(app *fiber.App, uc usecase.UseCase, middleware middleware.Midd
 		gameHandler,
 		gameStageHandler,
 		upgradeHandler,
+		tutorialHandler,
 	); err != nil {
 		panic(err)
 	}
