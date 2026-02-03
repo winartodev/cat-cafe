@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-
 	"github.com/winartodev/cat-cafe/internal/dto"
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
@@ -12,16 +11,25 @@ import (
 	"github.com/winartodev/cat-cafe/pkg/helper"
 )
 
+const (
+	upgradeTargetFood = "food"
+)
+
+// GameUseCase is used for interaction with player
 type GameUseCase interface {
-	UpdateUserBalance(ctx context.Context, coinEarned int64, userID int64) (res *dto.UserBalanceResponse, err error)
-	GetUserGameData(ctx context.Context, userID int64) (res *entities.Game, err error)
+	UpdateUserBalance(ctx context.Context, coinEarned int64) (res *dto.UserBalanceResponse, err error)
+	GetUserGameData(ctx context.Context) (res *entities.Game, err error)
 
-	GetGameStages(ctx context.Context, userID int64) (res []entities.UserGameStage, nextStage *entities.UserNextGameStageInfo, err error)
-	StartGameStage(ctx context.Context, userID int64, slug string) (stage *entities.GameStage, config *entities.GameStageConfig, nextStage *entities.UserNextGameStageInfo, err error)
-	CompleteGameStage(ctx context.Context, userID int64, slug string) (err error)
+	GetGameStages(ctx context.Context) (res []entities.UserGameStage, nextStage *entities.UserNextGameStageInfo, err error)
+	GetCurrentGameStage(ctx context.Context) (stage *entities.GameStage, config *entities.GameStageConfig, nextStage *entities.UserNextGameStageInfo, err error)
+	StartGameStage(ctx context.Context, slug string) (stage *entities.GameStage, config *entities.GameStageConfig, nextStage *entities.UserNextGameStageInfo, err error)
+	CompleteGameStage(ctx context.Context, slug string) (err error)
 
-	UnlockKitchenStation(ctx context.Context, userID int64, slug string) (res *entities.UnlockKitchenStation, err error)
-	UpgradeKitchenStation(ctx context.Context, userID int64, slug string) (res *entities.UpgradeKitchenStation, err error)
+	UnlockKitchenStation(ctx context.Context, slug string) (res *entities.UnlockKitchenStation, err error)
+	UpgradeKitchenStation(ctx context.Context, slug string) (res *entities.UpgradeKitchenStation, err error)
+
+	GetStageUpgrades(ctx context.Context) (res []entities.UserStageUpgrade, err error)
+	PurchaseStageUpgrade(ctx context.Context, slug string) (res *entities.Upgrade, err error)
 }
 
 type gameUseCase struct {
@@ -35,6 +43,7 @@ type gameUseCase struct {
 	kitchenStationRepo  repositories.KitchenStationRepository
 	kitchenConfigRepo   repositories.StageKitchenConfigRepository
 	rewardRepo          repositories.RewardRepository
+	stageUpgradeRepo    repositories.StageUpgradeRepository
 }
 
 func NewGameUseCase(
@@ -47,6 +56,7 @@ func NewGameUseCase(
 	kitchenStationRepo repositories.KitchenStationRepository,
 	kitchenConfigRepo repositories.StageKitchenConfigRepository,
 	rewardRepo repositories.RewardRepository,
+	stageUpgradeRepo repositories.StageUpgradeRepository,
 ) GameUseCase {
 	return &gameUseCase{
 		userUseCase:            userUc,
@@ -58,10 +68,16 @@ func NewGameUseCase(
 		kitchenStationRepo:     kitchenStationRepo,
 		kitchenConfigRepo:      kitchenConfigRepo,
 		rewardRepo:             rewardRepo,
+		stageUpgradeRepo:       stageUpgradeRepo,
 	}
 }
 
-func (g *gameUseCase) UpdateUserBalance(ctx context.Context, coinEarned int64, userID int64) (res *dto.UserBalanceResponse, err error) {
+func (g *gameUseCase) UpdateUserBalance(ctx context.Context, coinEarned int64) (res *dto.UserBalanceResponse, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO: should we validate earning rate ???
 
 	err = g.userRepo.BalanceWithTx(ctx, func(tx *sql.Tx) error {
@@ -94,7 +110,12 @@ func (g *gameUseCase) UpdateUserBalance(ctx context.Context, coinEarned int64, u
 	}, nil
 }
 
-func (g *gameUseCase) GetUserGameData(ctx context.Context, userID int64) (res *entities.Game, err error) {
+func (g *gameUseCase) GetUserGameData(ctx context.Context) (res *entities.Game, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	isDailyRewardAvailable, err := g.userUseCase.IsDailyRewardAvailable(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -105,14 +126,19 @@ func (g *gameUseCase) GetUserGameData(ctx context.Context, userID int64) (res *e
 	}, nil
 }
 
-func (g *gameUseCase) GetGameStages(ctx context.Context, userID int64) (res []entities.UserGameStage, nextStage *entities.UserNextGameStageInfo, err error) {
+func (g *gameUseCase) GetGameStages(ctx context.Context) (res []entities.UserGameStage, nextStage *entities.UserNextGameStageInfo, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	gameStages, err := g.gameStageRepo.GetActiveGameStagesDB(ctx)
 	if err != nil || len(gameStages) == 0 {
 		return nil, nil, err
 	}
 
-	latestProgress, err := g.userProgressionRepo.GetLatestGameStageProgressionDB(ctx, userID)
-	if err != nil {
+	latestProgress, err := g.userProgressionUseCase.LatestStageProgression(ctx)
+	if err != nil && !errors.Is(err, apperror.ErrStageNotFound) && !errors.Is(err, apperror.ErrStageNotStarted) {
 		return nil, nil, err
 	}
 
@@ -124,7 +150,7 @@ func (g *gameUseCase) GetGameStages(ctx context.Context, userID int64) (res []en
 			return nil, nil, err
 		}
 
-		return g.GetGameStages(ctx, userID)
+		return g.GetGameStages(ctx)
 	}
 
 	stages, nextStage := g.mapToUserGameStage(gameStages, latestProgress)
@@ -132,14 +158,49 @@ func (g *gameUseCase) GetGameStages(ctx context.Context, userID int64) (res []en
 	return stages, nextStage, nil
 }
 
-func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug string) (stage *entities.GameStage, config *entities.GameStageConfig, nextStage *entities.UserNextGameStageInfo, err error) {
+func (g *gameUseCase) GetCurrentGameStage(ctx context.Context) (stage *entities.GameStage, config *entities.GameStageConfig, nextStage *entities.UserNextGameStageInfo, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	lastestStage, err := g.userProgressionUseCase.LatestStageProgression(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	stageID := lastestStage.StageID
+
+	stage, err = g.gameStageRepo.GetGameStageByIDDB(ctx, stageID)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	config, err = g.gameStageRepo.GetGameConfigByIDDB(ctx, stageID)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	if err = g.gatherUserProgressionData(ctx, userID, stageID, config); err != nil {
+		return nil, nil, nil, err
+	}
+
+	return stage, config, nextStage, nil
+}
+
+func (g *gameUseCase) StartGameStage(ctx context.Context, slug string) (stage *entities.GameStage, config *entities.GameStageConfig, nextStage *entities.UserNextGameStageInfo, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	stage, err = g.gameStageRepo.GetGameStageBySlugDB(ctx, slug)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Get user's available stages
-	userStages, nextStage, err := g.GetGameStages(ctx, userID)
+	userStages, nextStage, err := g.GetGameStages(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -149,7 +210,7 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 	for _, userStage := range userStages {
 		if userStage.Slug == slug {
 			// Only allow if status is Current or Complete (if you allow replay)
-			if userStage.Status == entities.GSStatusCurrent || userStage.Status == entities.GSStatusComplete {
+			if userStage.Status == entities.GSStatusAvailable || userStage.Status == entities.GSStatusComplete {
 				canAccess = true
 			}
 			break
@@ -170,18 +231,36 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 		return nil, nil, nil, err
 	}
 
-	// Get user kitchen progression to include in response
-	userProgress, err := g.userProgressionRepo.GetUserKitchenProgressDB(ctx, userID, stage.ID)
+	err = g.gatherUserProgressionData(ctx, userID, stage.ID, config)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	// Calculate next level stats for all unlocked stations
-	if userProgress != nil && len(userProgress.UnlockedStations) > 0 {
-		userProgress.NextLevelStats = make(map[string]entities.UserStationLevel)
+	return stage, config, nextStage, nil
+}
 
-		for _, slug := range userProgress.UnlockedStations {
-			currentLevel, exists := userProgress.StationLevels[slug]
+func (g *gameUseCase) gatherUserProgressionData(ctx context.Context, userID int64, stageID int64, config *entities.GameStageConfig) (err error) {
+	if config == nil {
+		config, err = g.gameStageRepo.GetGameConfigByIDDB(ctx, stageID)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Get user kitchen progression to include in response
+	userKitchenProgress, err := g.userProgressionRepo.GetUserKitchenProgressDB(ctx, userID, stageID)
+	if err != nil {
+		return err
+	}
+
+	helper.PrettyPrint(userKitchenProgress == nil)
+
+	// Calculate next level stats for all unlocked stations
+	if userKitchenProgress != nil && len(userKitchenProgress.UnlockedStations) > 0 {
+		userKitchenProgress.NextLevelStats = make(map[string]entities.UserStationLevel)
+
+		for _, slug := range userKitchenProgress.UnlockedStations {
+			currentLevel, exists := userKitchenProgress.StationLevels[slug]
 			if !exists || currentLevel.Level == 0 {
 				continue
 			}
@@ -221,13 +300,13 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 
 			phaseRewards, err := g.kitchenConfigRepo.GetKitchenCompletionRewardByPhaseNumberDB(ctx, config.KitchenConfig.ID, phaseInfo.CurrentPhase)
 			if err != nil {
-				return nil, nil, nil, err
+				return err
 			}
 
 			currentLevel.Reward = phaseRewards.Reward
-			userProgress.StationLevels[slug] = currentLevel
+			userKitchenProgress.StationLevels[slug] = currentLevel
 
-			userProgress.NextLevelStats[slug] = entities.UserStationLevel{
+			userKitchenProgress.NextLevelStats[slug] = entities.UserStationLevel{
 				Level:  nextLevel,
 				Cost:   nextCost,
 				Profit: nextProfit,
@@ -236,9 +315,9 @@ func (g *gameUseCase) StartGameStage(ctx context.Context, userID int64, slug str
 	}
 
 	// Attach user progression to config for DTO mapping
-	config.UserProgress = userProgress
+	config.UserProgress = userKitchenProgress
 
-	return stage, config, nextStage, nil
+	return nil
 }
 
 func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgress *entities.UserGameStageProgression) ([]entities.UserGameStage, *entities.UserNextGameStageInfo) {
@@ -259,7 +338,7 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 		if lastProgress == nil {
 			// First stage should be current/available
 			if i == 0 {
-				currentStage.Status = entities.GSStatusCurrent
+				currentStage.Status = entities.GSStatusAvailable
 				isFoundCurrent = true
 
 				nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusLocked)
@@ -275,9 +354,9 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 				if lastProgress.IsComplete {
 					currentStage.Status = entities.GSStatusComplete
 
-					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusCurrent)
+					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusAvailable)
 				} else {
-					currentStage.Status = entities.GSStatusCurrent
+					currentStage.Status = entities.GSStatusAvailable
 
 					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusLocked)
 				}
@@ -290,7 +369,7 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 				// If last progress is complete, and we haven't set a current stage yet,
 				// this is the next available stage
 				if lastProgress.IsComplete && !isFoundCurrent {
-					currentStage.Status = entities.GSStatusCurrent
+					currentStage.Status = entities.GSStatusAvailable
 					isFoundCurrent = true
 
 					nextStage = g.setNextStageIfExists(stages, i+1, entities.GSStatusLocked)
@@ -307,7 +386,12 @@ func (g *gameUseCase) mapToUserGameStage(stages []entities.GameStage, lastProgre
 	return res, nextStage
 }
 
-func (g *gameUseCase) CompleteGameStage(ctx context.Context, userID int64, slug string) (err error) {
+func (g *gameUseCase) CompleteGameStage(ctx context.Context, slug string) (err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	stage, err := g.gameStageRepo.GetGameStageBySlugDB(ctx, slug)
 	if err != nil {
 		return err
@@ -317,7 +401,6 @@ func (g *gameUseCase) CompleteGameStage(ctx context.Context, userID int64, slug 
 		return apperror.ErrRecordNotFound
 	}
 
-	// TODO: FIX THIS EITHER USE LATEST GAME STAGE PROGRESSION OR BY STAGE GAME
 	userStageProgress, err := g.userProgressionRepo.GetGameStageProgressionDB(ctx, userID, stage.ID)
 	if err != nil {
 		return err
@@ -351,7 +434,12 @@ func (g *gameUseCase) CompleteGameStage(ctx context.Context, userID int64, slug 
 	return nil
 }
 
-func (g *gameUseCase) UnlockKitchenStation(ctx context.Context, userID int64, slug string) (*entities.UnlockKitchenStation, error) {
+func (g *gameUseCase) UnlockKitchenStation(ctx context.Context, slug string) (*entities.UnlockKitchenStation, error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Gather data for unlock
 	unlockCtx, err := g.gatherUnlockData(ctx, userID, slug)
 	if err != nil {
@@ -376,14 +464,16 @@ func (g *gameUseCase) UnlockKitchenStation(ctx context.Context, userID int64, sl
 		return nil, err
 	}
 
-	// Log unlock details
-	g.logUnlockDetails(unlockCtx, result)
-
 	// Build and return response
 	return g.buildUnlockResponse(unlockCtx, result), nil
 }
 
-func (g *gameUseCase) UpgradeKitchenStation(ctx context.Context, userID int64, slug string) (*entities.UpgradeKitchenStation, error) {
+func (g *gameUseCase) UpgradeKitchenStation(ctx context.Context, slug string) (*entities.UpgradeKitchenStation, error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Gather all required data
 	upgradeCtx, err := g.gatherUpgradeData(ctx, userID, slug)
 	if err != nil {
@@ -453,4 +543,47 @@ func (g *gameUseCase) setNextStageIfExists(stages []entities.GameStage, index in
 		Name:   stages[index].Name,
 		Status: status,
 	}
+}
+
+func (g *gameUseCase) GetStageUpgrades(ctx context.Context) (res []entities.UserStageUpgrade, err error) {
+	_, err = helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	latestProgression, err := g.userProgressionUseCase.LatestStageProgression(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	stageID := latestProgression.StageID
+	stageUpgrades, err := g.userProgressionUseCase.GetActiveStageUpgrade(ctx, stageID)
+	if err != nil {
+		return nil, err
+	}
+
+	return stageUpgrades, nil
+}
+
+func (g *gameUseCase) PurchaseStageUpgrade(ctx context.Context, slug string) (res *entities.Upgrade, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	upgradeData, err := g.gatherStageUpgradeData(ctx, userID, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = g.validateStageUpgrade(upgradeData); err != nil {
+		return nil, err
+	}
+
+	err = g.executeStageUpgradeTransaction(ctx, upgradeData)
+	if err != nil {
+		return nil, err
+	}
+
+	return &upgradeData.stageUpgrade.Upgrade, nil
 }

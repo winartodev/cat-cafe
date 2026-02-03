@@ -3,9 +3,9 @@ package entities
 type GameStageStatus string
 
 const (
-	GSStatusCurrent  GameStageStatus = "current"
-	GSStatusComplete GameStageStatus = "complete"
-	GSStatusLocked   GameStageStatus = "locked"
+	GSStatusAvailable GameStageStatus = "available"
+	GSStatusComplete  GameStageStatus = "complete"
+	GSStatusLocked    GameStageStatus = "locked"
 )
 
 type Game struct {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+
 	"github.com/winartodev/cat-cafe/internal/middleware"
 
 	"github.com/gofiber/fiber/v2"
@@ -44,6 +45,14 @@ func SetupHandler(app *fiber.App, uc usecase.UseCase, middleware middleware.Midd
 		uc.DailyRewardUseCase,
 	)
 
+	upgradeHandler := NewUpgradeHandler(
+		uc.UpgradeUseCase,
+	)
+
+	tutorialHandler := NewTutorialHandler(
+		uc.TutorialUseCase,
+	)
+
 	api := app.Group("/api")
 	userAuth := api.Group("/v1", middleware.WithUserAuth())
 	internalAuth := api.Group("/internal")
@@ -54,6 +63,8 @@ func SetupHandler(app *fiber.App, uc usecase.UseCase, middleware middleware.Midd
 		authHandler,
 		gameHandler,
 		gameStageHandler,
+		upgradeHandler,
+		tutorialHandler,
 	); err != nil {
 		panic(err)
 	}

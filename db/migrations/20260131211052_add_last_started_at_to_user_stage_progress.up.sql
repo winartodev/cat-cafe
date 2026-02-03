@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE user_stage_progress
+ADD COLUMN IF NOT EXISTS last_started_at TIMESTAMPTZ NULL;
+
+COMMIT;

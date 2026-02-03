@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"database/sql"
+	"github.com/winartodev/cat-cafe/pkg/helper"
 
 	"github.com/winartodev/cat-cafe/internal/entities"
 	"github.com/winartodev/cat-cafe/internal/repositories"
@@ -11,8 +12,9 @@ import (
 
 type UserProgressionUseCase interface {
 	InitializeUserProgression(ctx context.Context, userID int64, stageID int64, config *entities.GameStageConfig) (err error)
-
+	LatestStageProgression(ctx context.Context) (res *entities.UserGameStageProgression, err error)
 	DailyRewardProgression(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error)
+	GetActiveStageUpgrade(ctx context.Context, stageID int64) (res []entities.UserStageUpgrade, err error)
 }
 
 type userProgressionUseCase struct {
@@ -37,6 +39,11 @@ func (u *userProgressionUseCase) InitializeUserProgression(ctx context.Context, 
 		}
 
 		_, err = u.getOrCreateKitchenPhaseProgression(ctx, userProgressionTx, userID, config.KitchenConfig.ID)
+		if err != nil {
+			return err
+		}
+
+		err = userProgressionTx.MarkStageAsStartedDB(ctx, userID, stageID)
 		if err != nil {
 			return err
 		}
@@ -71,6 +78,7 @@ func (u *userProgressionUseCase) getOrCreateKitchenProgress(
 	}
 
 	stationLevels := make(map[string]entities.UserStationLevel)
+	stationUpgrades := make(map[string]entities.UserStationUpgrade)
 	var unlockedStations []string
 
 	for _, station := range gameConfig.KitchenStations {
@@ -113,6 +121,13 @@ func (u *userProgressionUseCase) getOrCreateKitchenProgress(
 				PreparationTime: 0,
 			}
 		}
+
+		stationUpgrades[station.FoodItemSlug] = entities.UserStationUpgrade{
+			ProfitBonus:       1,
+			ReduceCookingTime: 1,
+			HelperCount:       0,
+			CustomerCount:     0,
+		}
 	}
 
 	newProgress := &entities.UserKitchenStageProgression{
@@ -120,6 +135,7 @@ func (u *userProgressionUseCase) getOrCreateKitchenProgress(
 		StageID:          stageID,
 		StationLevels:    stationLevels,
 		UnlockedStations: unlockedStations,
+		StationUpgrades:  stationUpgrades,
 	}
 
 	err = repo.CreateUserKitchenProgressionDB(ctx, newProgress)
@@ -166,4 +182,40 @@ func (u *userProgressionUseCase) getOrCreateKitchenPhaseProgression(
 
 func (u *userProgressionUseCase) DailyRewardProgression(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error) {
 	return u.userProgressionRepo.GetUserDailyRewardByIDDB(ctx, userID)
+}
+
+func (u *userProgressionUseCase) LatestStageProgression(ctx context.Context) (res *entities.UserGameStageProgression, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	lastestProgression, err := u.userProgressionRepo.GetLatestGameStageProgressionDB(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if lastestProgression == nil {
+		return nil, apperror.ErrStageNotFound
+	}
+
+	if lastestProgression.LastStartedAt == nil {
+		return lastestProgression, apperror.ErrStageNotStarted
+	}
+
+	return lastestProgression, nil
+}
+
+func (u *userProgressionUseCase) GetActiveStageUpgrade(ctx context.Context, stageID int64) (res []entities.UserStageUpgrade, err error) {
+	userID, err := helper.GetUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	upgrades, err := u.userProgressionRepo.GetCurrentStageUpgradeDB(ctx, userID, stageID)
+	if err != nil {
+		return nil, err
+	}
+
+	return upgrades, err
 }

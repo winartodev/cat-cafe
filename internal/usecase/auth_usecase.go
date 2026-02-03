@@ -69,7 +69,8 @@ func (a *authUseCase) Login(ctx context.Context, authCode string) (authToken *st
 		// TODO: We update existing user data based on user data from midtrans
 	}
 
-	gameData, err := a.gameUseCase.GetUserGameData(ctx, user.ID)
+	ctx = context.WithValue(ctx, helper.ContextUserIDKey, user.ID)
+	gameData, err := a.gameUseCase.GetUserGameData(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}

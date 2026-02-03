@@ -14,6 +14,8 @@ type UseCase struct {
 	GameUseCase            GameUseCase
 	GameStageUseCase       GameStageUseCase
 	FoodItemUseCase        FoodItemUseCase
+	UpgradeUseCase         UpgradeUseCase
+	TutorialUseCase        TutorialUseCase
 }
 
 func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
@@ -43,6 +45,11 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		repo.FoodItemRepository,
 	)
 
+	upgradeUC := NewUpgradeUseCase(
+		repo.UpgradeRepository,
+		repo.FoodItemRepository,
+	)
+
 	gameStageUC := NewGameStageUseCase(
 		repo.GameStageRepository,
 		repo.StageCustomerConfigRepository,
@@ -52,6 +59,8 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		repo.RewardRepository,
 		repo.KitchenStationRepository,
 		repo.FoodItemRepository,
+		repo.UpgradeRepository,
+		repo.StageUpgradeRepository,
 	)
 
 	gameUC := NewGameUseCase(
@@ -64,6 +73,7 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		repo.KitchenStationRepository,
 		repo.StageKitchenConfigRepository,
 		repo.RewardRepository,
+		repo.StageUpgradeRepository,
 	)
 
 	authUC := NewAuthUseCase(
@@ -71,6 +81,10 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		gameUC,
 		repo.UserRepository,
 		jwt_,
+	)
+
+	tutorialUC := NewTutorialUseCase(
+		repo.TutorialRepository,
 	)
 
 	return &UseCase{
@@ -82,5 +96,7 @@ func SetUpUseCase(repo repositories.Repository, jwt_ *jwt.JWT) *UseCase {
 		GameUseCase:            gameUC,
 		GameStageUseCase:       gameStageUC,
 		FoodItemUseCase:        foodItemUC,
+		UpgradeUseCase:         upgradeUC,
+		TutorialUseCase:        tutorialUC,
 	}
 }

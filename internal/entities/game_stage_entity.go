@@ -47,6 +47,16 @@ type StageCameraConfig struct {
 	UpdatedAt time.Time `json:"-"`
 }
 
+type StageUpgrade struct {
+	ID        int64     `json:"id"`
+	StageID   int64     `json:"stage_id"`
+	UpgradeID int64     `json:"upgrade_id"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
+
+	Upgrade Upgrade `json:"upgrade"`
+}
+
 type GameStageConfig struct {
 	CustomerConfig     *StageCustomerConfig
 	StaffConfig        *StageStaffConfig

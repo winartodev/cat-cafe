@@ -31,6 +31,7 @@ type UserProgressionRepository interface {
 	CreateGameStageProgressionDB(ctx context.Context, userID int64, stageID int64) (*int64, error)
 	CheckStageProgressionExistsDB(ctx context.Context, userID int64, stageID int64) (bool, error)
 	MarkStageAsCompleteDB(ctx context.Context, userID int64, stageID int64) error
+	MarkStageAsStartedDB(ctx context.Context, userID int64, stageID int64) error
 
 	CreateUserKitchenProgressionDB(ctx context.Context, data *entities.UserKitchenStageProgression) (err error)
 	UpdateUserKitchenProgressDB(ctx context.Context, userID int64, stageID int64, progress *entities.UserKitchenStageProgression) (err error)
@@ -42,6 +43,11 @@ type UserProgressionRepository interface {
 
 	IsPhaseRewardAlreadyClaimedDB(ctx context.Context, userID int64, kitchenConfigID int64, phaseNumber int64, rewardID int64) (claimed bool, err error)
 	CreateUserKitchenClaimRewardDB(ctx context.Context, data entities.UserKitchenPhaseRewardClaim) (err error)
+
+	CreateUpgradeStageProgression(ctx context.Context, data entities.UserStageUpgrade) (err error)
+	UpdateKitchenStationUpgradeDB(ctx context.Context, userID int64, stageID int64, data map[string]entities.UserStationUpgrade) (err error)
+	GetPurchasedStageUpgradesDB(ctx context.Context, userID int64, stageID int64) (res []entities.StageUpgrade, err error)
+	GetCurrentStageUpgradeDB(ctx context.Context, userID int64, stageID int64) (res []entities.UserStageUpgrade, err error)
 
 	//GetUserDailyRewardRedis(ctx context.Context, userID int64) (res *entities.UserDailyReward, err error)
 	//SetUserDailyRewardRedis(ctx context.Context, userID int64, progress *entities.UserDailyReward, ttl time.Duration) (err error)
@@ -253,6 +259,7 @@ func (r *userProgressionRepository) GetLatestGameStageProgressionDB(ctx context.
 		&data.StageID,
 		&data.IsComplete,
 		&data.CompletedAt,
+		&data.LastStartedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -267,6 +274,7 @@ func (r *userProgressionRepository) GetUserKitchenProgressDB(ctx context.Context
 	var progression entities.UserKitchenStageProgression
 	var stationLevelsJSON []byte
 	var unlockedStationsJSON []byte
+	var stationUpgradesJSON []byte
 
 	err = r.db.QueryRowContext(ctx,
 		getUserKitchenProgressQuery,
@@ -278,6 +286,7 @@ func (r *userProgressionRepository) GetUserKitchenProgressDB(ctx context.Context
 		&progression.StageID,
 		&stationLevelsJSON,
 		&unlockedStationsJSON,
+		&stationUpgradesJSON,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -290,6 +299,10 @@ func (r *userProgressionRepository) GetUserKitchenProgressDB(ctx context.Context
 	}
 
 	if err := json.Unmarshal(unlockedStationsJSON, &progression.UnlockedStations); err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(stationUpgradesJSON, &progression.StationUpgrades); err != nil {
 		return nil, err
 	}
 
@@ -307,11 +320,17 @@ func (r *userProgressionRepository) CreateUserKitchenProgressionDB(ctx context.C
 		return err
 	}
 
+	upgradeStationJSON, err := json.Marshal(data.StationUpgrades)
+	if err != nil {
+		return err
+	}
+
 	_, err = r.db.ExecContext(ctx, insertUserKitchenProgressQuery,
 		data.UserID,
 		data.StageID,
 		stationLevelsJSON,
 		unlockedStationsJSON,
+		upgradeStationJSON,
 	)
 	if err != nil {
 		return err
@@ -451,8 +470,6 @@ func (r *userProgressionRepository) IsPhaseRewardAlreadyClaimedDB(ctx context.Co
 		return false, err
 	}
 
-	fmt.Println("claimed ", claimed)
-
 	return claimed == 1, nil
 }
 
@@ -472,4 +489,137 @@ func (r *userProgressionRepository) CreateUserKitchenClaimRewardDB(ctx context.C
 	}
 
 	return nil
+}
+
+func (r *userProgressionRepository) MarkStageAsStartedDB(ctx context.Context, userID int64, stageID int64) error {
+	now := helper.NowUTC()
+	_, err := r.db.ExecContext(ctx, markStageAsStartedQuery,
+		now,
+		userID,
+		stageID,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *userProgressionRepository) CreateUpgradeStageProgression(ctx context.Context, data entities.UserStageUpgrade) (err error) {
+	now := helper.NowUTC()
+
+	_, err = r.db.ExecContext(ctx, insertUserUpgradeStageProgressionQuery,
+		data.UserID,
+		data.StageID,
+		data.GameStageUpgradeID,
+		now, now, now,
+	)
+	if database.IsDuplicateError(err) {
+		return apperror.ErrConflict
+	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *userProgressionRepository) UpdateKitchenStationUpgradeDB(ctx context.Context, userID int64, stageID int64, data map[string]entities.UserStationUpgrade) (err error) {
+	now := helper.NowUTC()
+
+	completedPhasesJSON, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.ExecContext(ctx, updateStationUpgradeQuery, completedPhasesJSON, now, userID, stageID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *userProgressionRepository) GetPurchasedStageUpgradesDB(ctx context.Context, userID int64, stageID int64) (res []entities.StageUpgrade, err error) {
+	rows, err := r.db.QueryContext(ctx, stageUpgradeAlreadyPurchaseQuery, userID, stageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var upgrades []entities.StageUpgrade
+	for rows.Next() {
+		var stageUpgrade entities.StageUpgrade
+		var upgrade entities.Upgrade
+		var upgradeEffect entities.UpgradeEffect
+		err := rows.Scan(
+			&stageUpgrade.ID,
+			&upgrade.Slug,
+			&upgrade.Name,
+			&upgrade.Cost,
+			&upgrade.CostType,
+			&upgradeEffect.Type,
+			&upgradeEffect.Value,
+			&upgradeEffect.Unit,
+			&upgradeEffect.Target,
+			&upgradeEffect.TargetID,
+			&upgradeEffect.TargetName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		upgrade.Effect = upgradeEffect
+		stageUpgrade.Upgrade = upgrade
+
+		upgrades = append(upgrades, stageUpgrade)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return upgrades, nil
+}
+
+func (r *userProgressionRepository) GetCurrentStageUpgradeDB(ctx context.Context, userID int64, stageID int64) (res []entities.UserStageUpgrade, err error) {
+	rows, err := r.db.QueryContext(ctx, currentStageUpgradeQuery, userID, stageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var upgrades []entities.UserStageUpgrade
+	for rows.Next() {
+		var userStageUpgrade entities.UserStageUpgrade
+		var upgrade entities.Upgrade
+		var upgradeEffect entities.UpgradeEffect
+		err := rows.Scan(
+			&upgrade.Slug,
+			&upgrade.Name,
+			&upgrade.Description,
+			&upgrade.Cost,
+			&upgrade.CostType,
+			&upgradeEffect.Type,
+			&upgradeEffect.Value,
+			&upgradeEffect.Unit,
+			&upgradeEffect.Target,
+			&upgradeEffect.TargetID,
+			&upgradeEffect.TargetName,
+			&userStageUpgrade.IsPurchased,
+			&userStageUpgrade.PurchasedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		userStageUpgrade.Upgrade = upgrade
+
+		upgrades = append(upgrades, userStageUpgrade)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return upgrades, nil
 }

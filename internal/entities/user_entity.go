@@ -36,21 +36,24 @@ type UserBalanceCache struct {
 }
 
 type UserGameStageProgression struct {
-	ID          int64           `json:"id"`
-	UserID      int64           `json:"user_id"`
-	StageID     int64           `json:"stage_id"`
-	Status      GameStageStatus `json:"status"`
-	IsComplete  bool            `json:"is_complete"`
-	CompletedAt *time.Time      `json:"completed_at"`
+	ID            int64           `json:"id"`
+	UserID        int64           `json:"user_id"`
+	StageID       int64           `json:"stage_id"`
+	Status        GameStageStatus `json:"status"`
+	IsComplete    bool            `json:"is_complete"`
+	CompletedAt   *time.Time      `json:"completed_at"`
+	LastStartedAt *time.Time      `json:"last_started_at"`
 }
 
 type UserKitchenStageProgression struct {
-	ID               int64                       `json:"id"`
-	UserID           int64                       `json:"user_id"`
-	StageID          int64                       `json:"stage_id"`
-	StationLevels    map[string]UserStationLevel `json:"station_levels"`
-	UnlockedStations []string                    `json:"unlocked_stations"`
-	NextLevelStats   map[string]UserStationLevel `json:"next_level_stats,omitempty"` // Calculated, not stored in DB
+	ID               int64                         `json:"id"`
+	UserID           int64                         `json:"user_id"`
+	StageID          int64                         `json:"stage_id"`
+	StationLevels    map[string]UserStationLevel   `json:"station_levels"`
+	UnlockedStations []string                      `json:"unlocked_stations"`
+	StationUpgrades  map[string]UserStationUpgrade `json:"station_upgrades"`
+
+	NextLevelStats map[string]UserStationLevel `json:"next_level_stats,omitempty"` // Calculated, not stored in DB
 }
 
 type UserKitchenPhaseProgression struct {
@@ -76,6 +79,23 @@ type UserStationLevel struct {
 	PreparationTime float64 `json:"preparation_time"`
 
 	Reward *Reward `json:"reward,omitempty"`
+}
+
+type UserStationUpgrade struct {
+	ProfitBonus       float64 `json:"profit_bonus"`
+	ReduceCookingTime float64 `json:"reduce_cooking_time"`
+	HelperCount       int64   `json:"helper_count"`
+	CustomerCount     int64   `json:"customer_count"`
+}
+
+type UserStageUpgrade struct {
+	UserID             int64      `json:"user_id"`
+	StageID            int64      `json:"stage_id"`
+	GameStageUpgradeID int64      `json:"game_stage_upgrade_id"`
+	PurchasedAt        *time.Time `json:"purchased_at"`
+
+	IsPurchased bool    `json:"is_purchased"`
+	Upgrade     Upgrade `json:"upgrade"`
 }
 
 func (u *User) ToCache() *UserCache {
